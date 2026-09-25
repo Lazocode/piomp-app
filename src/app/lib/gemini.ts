@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from '@google/genai';
 
+export const GEMINI_MODEL = 'gemini-3-flash-preview'; // Modelo de IA do Gemini que será usado para gerar respostas e análises de PDFs.
 export const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });

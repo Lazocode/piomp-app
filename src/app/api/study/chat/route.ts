@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
-import { ai } from '../../../lib/gemini';
+import { ai, GEMINI_MODEL } from '../../../lib/gemini';
 import { Content } from '@google/genai';
 
 const SYSTEM_PROMPTS: Record<string, string> = {
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     const systemInstruction = SYSTEM_PROMPTS[study_mode] || SYSTEM_PROMPTS.socratico;
 
     const aiResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       contents,
       config: {
         systemInstruction,

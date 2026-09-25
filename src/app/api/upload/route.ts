@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabase';
-import { ai, pdfAnalysisSchema } from '../../lib/gemini';
+import { ai, pdfAnalysisSchema, GEMINI_MODEL } from '../../lib/gemini';
 
 export async function POST(request: Request) {
   try {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       'sugira uma pasta principal (matéria) e de 3 a 5 tags.';
 
     const aiResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: GEMINI_MODEL,
       contents: [
         {
           inlineData: {
