@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../lib/supabase';
 import { ai } from '../../../lib/gemini';
+import { Content } from '@google/genai';
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   socratico:
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const base64Pdf = Buffer.from(pdfArrayBuffer).toString('base64');
 
     // 4. Monta o contexto com o PDF + Histórico + Pergunta atual
-    const contents: any[] = [
+    const contents: Content[] = [
       {
         role: 'user',
         parts: [
