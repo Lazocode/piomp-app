@@ -24,6 +24,7 @@ interface ChatMessage {
 }
 
 type StudyMode = 'socratico' | 'explicativo' | 'quiz';
+type ActiveTab = 'files' | 'doc' | 'chat';
 
 const STUDY_MODES_CONFIG: Record<
   StudyMode,
@@ -59,6 +60,9 @@ export default function HomePage() {
   const [inputMsg, setInputMsg] = useState('');
   const [studyMode, setStudyMode] = useState<StudyMode>('socratico');
   const [loadingChat, setLoadingChat] = useState(false);
+
+  // Aba ativa para ecrãs menores (< xl)
+  const [activeTab, setActiveTab] = useState<ActiveTab>('files');
 
   async function refreshDocuments() {
     const { data } = await supabase
@@ -120,6 +124,7 @@ export default function HomePage() {
 
       await refreshDocuments();
       setSelectedDoc(data.document);
+      setActiveTab('doc'); // Redireciona para o resumo no telemóvel
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro inesperado';
       alert(msg);
@@ -204,19 +209,62 @@ export default function HomePage() {
     selectedDoc?.document_tags?.map((t) => t.tags?.name).filter(Boolean) || [];
 
   return (
-    <div className="h-screen w-screen bg-[#0a0a0a] text-neutral-200 p-4 overflow-hidden font-sans">
-      <div className="grid grid-cols-12 gap-4 h-full max-w-[1800px] mx-auto">
+    <div className="min-h-screen xl:h-screen w-screen bg-[#0a0a0a] text-neutral-200 p-2 sm:p-4 overflow-x-hidden xl:overflow-hidden font-sans flex flex-col">
+      
+      {/* NAVEGAÇÃO DE ABAS EXCLUSIVA PARA ECRÃS MENORES (< XL) */}
+      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-[#111111] border border-neutral-800 p-1 mb-3 shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab('files')}
+          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+            activeTab === 'files'
+              ? 'bg-purple-600 text-white'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          01 // ARQUIVOS ({documents.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('doc')}
+          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+            activeTab === 'doc'
+              ? 'bg-purple-600 text-white'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          02 // RESUMO
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('chat')}
+          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+            activeTab === 'chat'
+              ? 'bg-purple-600 text-white'
+              : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          03 // ESTUDO
+        </button>
+      </nav>
+
+      {/* DISPOSIÇÃO: EMPILHADA EM TELAS MENORES / GRELHA 12 COLUNAS EM TELAS GRANDES */}
+      <div className="flex-1 flex flex-col xl:grid xl:grid-cols-12 gap-4 max-w-[1800px] w-full mx-auto overflow-hidden">
         
         {/* =========================================================
-            COLUNA 1 (ESQUERDA): GRADE 2xN DE DOCUMENTOS
+            COLUNA 1 (ESQUERDA): ARQUIVOS
         ========================================================= */}
-        <section className="col-span-3 flex flex-col gap-3 h-full overflow-hidden">
+        <section
+          className={`col-span-12 xl:col-span-3 flex flex-col gap-3 h-full overflow-hidden ${
+            activeTab === 'files' ? 'flex' : 'hidden xl:flex'
+          }`}
+        >
           <div className="h-9 bg-purple-600 text-white font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
             <span>01 // ARQUIVOS</span>
             <span>[{documents.length}]</span>
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-4 flex flex-col gap-4 overflow-hidden">
+          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-4 overflow-hidden min-h-[400px] xl:min-h-0">
             <label
               className={`w-full py-2.5 px-3 border text-xs font-mono uppercase tracking-wider text-center cursor-pointer transition-colors shrink-0 ${
                 uploading
@@ -235,7 +283,7 @@ export default function HomePage() {
             </label>
 
             <div className="flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2 sm:gap-3">
                 {documents.map((doc, idx) => {
                   const isSelected = selectedDoc?.id === doc.id;
                   const isDeleting = deletingId === doc.id;
@@ -244,13 +292,19 @@ export default function HomePage() {
                   return (
                     <div
                       key={doc.id}
-                      onClick={() => setSelectedDoc(doc)}
+                      onClick={() => {
+                        setSelectedDoc(doc);
+                        setActiveTab('doc'); // Transita para visualização em ecrãs móveis
+                      }}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') setSelectedDoc(doc);
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setSelectedDoc(doc);
+                          setActiveTab('doc');
+                        }
                       }}
-                      className={`aspect-square p-3 text-left flex flex-col justify-between border transition-colors cursor-pointer relative ${
+                      className={`aspect-square p-2.5 sm:p-3 text-left flex flex-col justify-between border transition-colors cursor-pointer relative ${
                         isSelected
                           ? 'bg-purple-600/15 border-purple-500 text-white'
                           : 'bg-[#181818] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
@@ -295,9 +349,13 @@ export default function HomePage() {
         </section>
 
         {/* =========================================================
-            COLUNA 2 (CENTRO): ESTRUTURA DO DOCUMENTO E LEITURA
+            COLUNA 2 (CENTRO): RESUMO E METADADOS
         ========================================================= */}
-        <section className="col-span-5 flex flex-col gap-3 h-full overflow-hidden">
+        <section
+          className={`col-span-12 xl:col-span-5 flex flex-col gap-3 h-full overflow-hidden ${
+            activeTab === 'doc' ? 'flex' : 'hidden xl:flex'
+          }`}
+        >
           <div className="h-9 bg-neutral-800 border-l-4 border-purple-500 text-neutral-200 font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
             <span>02 // ESTRUTURA E RESUMO</span>
             {selectedDoc && (
@@ -308,7 +366,7 @@ export default function HomePage() {
                   rel="noreferrer"
                   className="text-[11px] text-purple-400 hover:underline"
                 >
-                  [ABRIR ORIGINAL]
+                  [ORIGINAL]
                 </a>
                 <button
                   type="button"
@@ -316,25 +374,25 @@ export default function HomePage() {
                   disabled={deletingId === selectedDoc.id}
                   className="text-[11px] text-neutral-400 hover:text-red-400 cursor-pointer uppercase"
                 >
-                  {deletingId === selectedDoc.id ? '[REMOVENDO...]' : '[REMOVER PDF]'}
+                  {deletingId === selectedDoc.id ? '[...]' : '[REMOVER]'}
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-4 flex flex-col gap-4 overflow-y-auto">
+          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-4 overflow-y-auto min-h-[450px] xl:min-h-0">
             {selectedDoc ? (
               <>
                 <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
                   DOCUMENTO SELECIONADO
                 </div>
 
-                <div className="bg-[#161616] border border-neutral-800 p-4">
-                  <h2 className="text-base font-semibold text-white break-words">
+                <div className="bg-[#161616] border border-neutral-800 p-3 sm:p-4">
+                  <h2 className="text-sm sm:text-base font-semibold text-white break-words">
                     {selectedDoc.title}
                   </h2>
                   {activeTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
+                    <div className="flex flex-wrap gap-1.5 mt-2 sm:mt-3">
                       {activeTags.map((t, i) => (
                         <span
                           key={i}
@@ -351,7 +409,7 @@ export default function HomePage() {
                   METADADOS DE CATALOGAÇÃO
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="bg-[#161616] border border-neutral-800 p-3">
                     <span className="block font-mono text-[10px] text-neutral-500 uppercase">
                       CATEGORIA / PASTA
@@ -374,8 +432,8 @@ export default function HomePage() {
                   SÍNTESE DO DOCUMENTO
                 </div>
 
-                <div className="flex-1 bg-[#161616] border border-neutral-800 p-4 overflow-y-auto">
-                  <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap">
+                <div className="flex-1 bg-[#161616] border border-neutral-800 p-3 sm:p-4 overflow-y-auto">
+                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap">
                     {selectedDoc.ai_summary}
                   </p>
                 </div>
@@ -389,27 +447,31 @@ export default function HomePage() {
         </section>
 
         {/* =========================================================
-            COLUNA 3 (DIREITA): SESSÃO DE ESTUDO E INTERAÇÃO
+            COLUNA 3 (DIREITA): TERMINAL DE ESTUDO
         ========================================================= */}
-        <section className="col-span-4 flex flex-col gap-3 h-full overflow-hidden">
+        <section
+          className={`col-span-12 xl:col-span-4 flex flex-col gap-3 h-full overflow-hidden ${
+            activeTab === 'chat' ? 'flex' : 'hidden xl:flex'
+          }`}
+        >
           <div className="h-9 bg-neutral-800 border-l-4 border-purple-500 text-neutral-200 font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
             <span>03 // TERMINAL DE ESTUDO</span>
             <span className="text-purple-400">{STUDY_MODES_CONFIG[studyMode].title}</span>
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-4 flex flex-col gap-3 overflow-hidden">
-            {/* Barra de Status Superior */}
+          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-3 overflow-hidden min-h-[500px] xl:min-h-0">
+            {/* Status Superior */}
             <div className="bg-[#161616] border border-neutral-800 p-3 space-y-2 shrink-0">
               <div className="flex items-center justify-between font-mono text-[10px] text-neutral-400">
-                <span>DIRETRIZ: {STUDY_MODES_CONFIG[studyMode].role}</span>
-                <span>HISTÓRICO: {messages.length} MSG</span>
+                <span className="truncate max-w-[65%]">DIRETRIZ: {STUDY_MODES_CONFIG[studyMode].role}</span>
+                <span>MSG: {messages.length}</span>
               </div>
               <div className="w-3/4 h-1.5 bg-purple-500" />
               <div className="w-full h-1.5 bg-neutral-800" />
             </div>
 
-            {/* Histórico de Mensagens */}
-            <div className="flex-1 bg-[#161616] border border-neutral-800 p-3 overflow-y-auto space-y-3">
+            {/* Mensagens */}
+            <div className="flex-1 bg-[#161616] border border-neutral-800 p-3 overflow-y-auto space-y-3 min-h-[220px]">
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center font-mono text-xs text-neutral-600 uppercase text-center px-4">
                   SELECIONE O MODO ABAIXO E ENVIE UMA QUESTÃO PARA INICIAR
@@ -420,8 +482,8 @@ export default function HomePage() {
                     key={idx}
                     className={`p-3 border text-xs leading-relaxed whitespace-pre-wrap ${
                       m.role === 'user'
-                        ? 'bg-[#1f1f1f] border-purple-500/60 text-neutral-100 ml-4'
-                        : 'bg-[#121212] border-neutral-800 text-neutral-300 mr-4'
+                        ? 'bg-[#1f1f1f] border-purple-500/60 text-neutral-100 ml-3 sm:ml-4'
+                        : 'bg-[#121212] border-neutral-800 text-neutral-300 mr-3 sm:mr-4'
                     }`}
                   >
                     <div className="font-mono text-[10px] uppercase mb-1 text-purple-400">
@@ -438,7 +500,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Seletor de Modo de Operação + Explicação Exposta no Site */}
+            {/* Modos de Operação */}
             <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-neutral-400 shrink-0">
               MODO DE OPERAÇÃO DA IA
             </div>
@@ -458,11 +520,11 @@ export default function HomePage() {
                         : 'bg-[#161616] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
                     }`}
                   >
-                    <span className="font-mono text-[11px] font-bold uppercase tracking-wider block">
+                    <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider block">
                       {info.title}
                     </span>
                     <span
-                      className={`font-mono text-[9px] uppercase mt-1 block truncate ${
+                      className={`font-mono text-[8px] sm:text-[9px] uppercase mt-1 block truncate ${
                         active ? 'text-purple-100 font-semibold' : 'text-neutral-500'
                       }`}
                     >
@@ -473,17 +535,17 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Caixa de Especificação do Modo Ativo */}
+            {/* Descrição do Modo Ativo */}
             <div className="bg-[#161616] border border-neutral-800 p-2.5 shrink-0">
               <div className="font-mono text-[10px] uppercase text-purple-400 mb-1">
-                ESPECIFICAÇÃO // {STUDY_MODES_CONFIG[studyMode].title} ({STUDY_MODES_CONFIG[studyMode].role})
+                ESPECIFICAÇÃO // {STUDY_MODES_CONFIG[studyMode].title}
               </div>
-              <p className="text-[11px] text-neutral-300 leading-snug">
+              <p className="text-[10px] sm:text-[11px] text-neutral-300 leading-snug">
                 {STUDY_MODES_CONFIG[studyMode].description}
               </p>
             </div>
 
-            {/* Input de Mensagem */}
+            {/* Formulário de Envio */}
             <form onSubmit={handleSendMessage} className="flex gap-2 shrink-0">
               <input
                 type="text"
@@ -491,12 +553,12 @@ export default function HomePage() {
                 onChange={(e) => setInputMsg(e.target.value)}
                 disabled={!selectedDoc || loadingChat}
                 placeholder="DIGITE SUA PERGUNTA OU RESPOSTA..."
-                className="flex-1 bg-[#161616] border border-neutral-800 focus:border-purple-500 px-3 py-2.5 text-xs text-white placeholder-neutral-600 font-mono focus:outline-none"
+                className="flex-1 bg-[#161616] border border-neutral-800 focus:border-purple-500 px-3 py-2 sm:py-2.5 text-xs text-white placeholder-neutral-600 font-mono focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={!selectedDoc || loadingChat || !inputMsg.trim()}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-mono font-bold text-xs uppercase px-4 py-2.5 cursor-pointer transition-colors"
+                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-mono font-bold text-xs uppercase px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition-colors"
               >
                 ENVIAR
               </button>
