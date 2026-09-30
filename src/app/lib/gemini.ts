@@ -3,6 +3,11 @@ import { GoogleGenAI, Type, Schema } from '@google/genai';
 export const GEMINI_MODEL = 'gemini-3.1-flash-lite'; // Modelo de IA do Gemini que será usado para gerar respostas e análises de PDFs.
 export const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    },
+  },
 });
 
 // Contrato de dados (equivalente ao Pydantic, mas nativo em TypeScript)

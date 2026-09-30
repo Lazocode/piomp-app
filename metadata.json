@@ -1,0 +1,7 @@
+{
+  "name": "Locador de PDFs + IA de Estudos",
+  "description": "Workspace inteligente de estudos com Gemini e Supabase",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

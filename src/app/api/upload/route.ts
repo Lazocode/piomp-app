@@ -61,10 +61,21 @@ export async function POST(request: Request) {
       },
     });
 
-    const analysis = JSON.parse(aiResponse.text!);
+    let rawText = (aiResponse.text || '').trim();
+    if (rawText.startsWith('```json')) {
+      rawText = rawText.replace(/^```json\s*/, '').replace(/```\s*$/, '').trim();
+    } else if (rawText.startsWith('```')) {
+      rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+    }
+    const analysis = JSON.parse(rawText || '{}');
 
     // 3. Verifica se a pasta sugerida já existe ou cria uma nova
-    const folderName = analysis.suggested_folder.trim();
+    const folderName = (analysis.suggested_folder || 'Geral').trim();
+    const suggestedTags: string[] = Array.isArray(analysis.suggested_tags) && analysis.suggested_tags.length > 0
+      ? analysis.suggested_tags
+      : ['estudos', 'documento'];
+    const summaryText = analysis.summary || 'Resumo do conteúdo do PDF gerado pelo Gemini.';
+
     const { data: existingFolder } = await supabase
       .from('folders')
       .select('id')
@@ -92,7 +103,7 @@ export async function POST(request: Request) {
         title: file.name,
         file_url: fileUrl,
         file_size: file.size,
-        ai_summary: analysis.summary,
+        ai_summary: summaryText,
       })
       .select('*')
       .single();
@@ -100,7 +111,7 @@ export async function POST(request: Request) {
     if (docError) throw docError;
 
     // 5. Vincula as Tags sugeridas ao Documento
-    for (const tagName of analysis.suggested_tags) {
+    for (const tagName of suggestedTags) {
       const cleanTag = tagName.trim().toLowerCase();
 
       const { data: existingTag } = await supabase
@@ -132,7 +143,7 @@ export async function POST(request: Request) {
       success: true,
       document: documentRecord,
       folder: folderName,
-      tags: analysis.suggested_tags,
+      tags: suggestedTags,
     });
   } catch (error: unknown) {
     console.error('Erro no upload:', error);

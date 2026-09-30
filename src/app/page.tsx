@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Search, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface TagRelation {
@@ -63,6 +64,18 @@ export default function HomePage() {
 
   // Aba ativa para ecrãs menores (< xl)
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredDocuments = documents.filter((doc) => {
+    if (!searchQuery.trim()) return true;
+    const term = searchQuery.toLowerCase().trim();
+    const matchesTitle = doc.title.toLowerCase().includes(term);
+    const matchesFolder = doc.folders?.name?.toLowerCase().includes(term);
+    const matchesTags = doc.document_tags?.some((dt) =>
+      dt.tags?.name?.toLowerCase().includes(term)
+    );
+    return Boolean(matchesTitle || matchesFolder || matchesTags);
+  });
 
   async function refreshDocuments() {
     const { data } = await supabase
@@ -261,10 +274,32 @@ export default function HomePage() {
         >
           <div className="h-9 bg-purple-600 text-white font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
             <span>01 // ARQUIVOS</span>
-            <span>[{documents.length}]</span>
+            <span>[{filteredDocuments.length}{searchQuery ? `/${documents.length}` : ''}]</span>
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-4 overflow-hidden min-h-[400px] xl:min-h-0">
+          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-3 overflow-hidden min-h-[400px] xl:min-h-0">
+            {/* CAMPO DE BUSCA (FILTRO POR TÍTULO OU TAGS) */}
+            <div className="relative flex items-center shrink-0">
+              <Search className="w-3.5 h-3.5 absolute left-3 text-neutral-500 pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="BUSCAR POR TÍTULO OU TAG..."
+                className="w-full bg-[#181818] border border-neutral-800 text-xs font-mono text-neutral-200 pl-8.5 pr-8 py-2 placeholder:text-neutral-500 focus:outline-none focus:border-purple-500 transition-colors uppercase"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  title="Limpar busca"
+                  className="absolute right-2.5 p-1 text-neutral-500 hover:text-white transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
             <label
               className={`w-full py-2.5 px-3 border text-xs font-mono uppercase tracking-wider text-center cursor-pointer transition-colors shrink-0 ${
                 uploading
@@ -283,67 +318,122 @@ export default function HomePage() {
             </label>
 
             <div className="flex-1 overflow-y-auto pr-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2 sm:gap-3">
-                {documents.map((doc, idx) => {
-                  const isSelected = selectedDoc?.id === doc.id;
-                  const isDeleting = deletingId === doc.id;
-                  const folder = doc.folders?.name || 'GERAL';
+              {filteredDocuments.length === 0 ? (
+                <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-neutral-800">
+                  <Search className="w-5 h-5 text-neutral-600 mb-2" />
+                  <p className="font-mono text-xs text-neutral-400 mb-1">
+                    NENHUM DOCUMENTO ENCONTRADO
+                  </p>
+                  {searchQuery ? (
+                    <>
+                      <p className="font-mono text-[10px] text-neutral-500 max-w-[200px] truncate mb-3">
+                        Filtro: &quot;{searchQuery}&quot;
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="px-2.5 py-1 bg-neutral-900 border border-neutral-700 hover:border-purple-500 text-neutral-300 hover:text-purple-300 font-mono text-[10px] uppercase transition-colors"
+                      >
+                        LIMPAR BUSCA
+                      </button>
+                    </>
+                  ) : (
+                    <p className="font-mono text-[10px] text-neutral-600">
+                      Adicione um arquivo PDF acima para começar.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2 sm:gap-3">
+                  {filteredDocuments.map((doc, idx) => {
+                    const isSelected = selectedDoc?.id === doc.id;
+                    const isDeleting = deletingId === doc.id;
+                    const folder = doc.folders?.name || 'GERAL';
 
-                  return (
-                    <div
-                      key={doc.id}
-                      onClick={() => {
-                        setSelectedDoc(doc);
-                        setActiveTab('doc'); // Transita para visualização em ecrãs móveis
-                      }}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
+                    return (
+                      <div
+                        key={doc.id}
+                        onClick={() => {
                           setSelectedDoc(doc);
-                          setActiveTab('doc');
-                        }
-                      }}
-                      className={`aspect-square p-2.5 sm:p-3 text-left flex flex-col justify-between border transition-colors cursor-pointer relative ${
-                        isSelected
-                          ? 'bg-purple-600/15 border-purple-500 text-white'
-                          : 'bg-[#181818] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
-                      } ${isDeleting ? 'opacity-40 pointer-events-none' : ''}`}
-                    >
-                      <div className="w-full flex items-center justify-between font-mono text-[10px] gap-1">
-                        <span className={isSelected ? 'text-purple-400 font-bold' : 'text-neutral-500'}>
-                          #{String(idx + 1).padStart(2, '0')}
-                        </span>
-                        <button
-                          type="button"
-                          title="Remover PDF"
-                          onClick={(e) => handleDeleteDocument(doc, e)}
-                          className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-700 text-neutral-400 hover:border-red-500 hover:text-red-400 font-mono text-[9px] uppercase transition-colors"
-                        >
-                          X
-                        </button>
-                      </div>
+                          setActiveTab('doc'); // Transita para visualização em ecrãs móveis
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setSelectedDoc(doc);
+                            setActiveTab('doc');
+                          }
+                        }}
+                        className={`min-h-[130px] p-2.5 sm:p-3 text-left flex flex-col justify-between border transition-colors cursor-pointer relative ${
+                          isSelected
+                            ? 'bg-purple-600/15 border-purple-500 text-white'
+                            : 'bg-[#181818] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
+                        } ${isDeleting ? 'opacity-40 pointer-events-none' : ''}`}
+                      >
+                        <div className="w-full flex items-center justify-between font-mono text-[10px] gap-1">
+                          <span className={isSelected ? 'text-purple-400 font-bold' : 'text-neutral-500'}>
+                            #{String(idx + 1).padStart(2, '0')}
+                          </span>
+                          <button
+                            type="button"
+                            title="Remover PDF"
+                            onClick={(e) => handleDeleteDocument(doc, e)}
+                            className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-700 text-neutral-400 hover:border-red-500 hover:text-red-400 font-mono text-[9px] uppercase transition-colors"
+                          >
+                            X
+                          </button>
+                        </div>
 
-                      <div>
-                        <span className="inline-block truncate max-w-full uppercase font-mono text-[9px] px-1 mb-1 bg-neutral-900 border border-neutral-800 text-purple-400">
-                          {folder}
-                        </span>
-                        <p className="text-xs font-medium line-clamp-2 leading-snug break-words">
-                          {doc.title}
-                        </p>
-                      </div>
+                        <div className="my-1.5">
+                          <span className="inline-block truncate max-w-full uppercase font-mono text-[9px] px-1 mb-1 bg-neutral-900 border border-neutral-800 text-purple-400">
+                            {folder}
+                          </span>
+                          <p className="text-xs font-medium line-clamp-2 leading-snug break-words">
+                            {doc.title}
+                          </p>
+                          {doc.document_tags && doc.document_tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {doc.document_tags.slice(0, 2).map((t, tIdx) => {
+                                const tagName = t.tags?.name;
+                                if (!tagName) return null;
+                                const isTagMatch =
+                                  searchQuery &&
+                                  tagName.toLowerCase().includes(searchQuery.toLowerCase().trim());
+                                return (
+                                  <span
+                                    key={tIdx}
+                                    className={`text-[8px] font-mono px-1 py-0.5 border truncate max-w-[85px] uppercase ${
+                                      isTagMatch
+                                        ? 'bg-purple-950 border-purple-400 text-purple-200 font-bold'
+                                        : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                                    }`}
+                                  >
+                                    #{tagName}
+                                  </span>
+                                );
+                              })}
+                              {doc.document_tags.length > 2 && (
+                                <span className="text-[8px] font-mono text-neutral-500 self-center">
+                                  +{doc.document_tags.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="w-full h-1 bg-neutral-800 overflow-hidden">
-                        <div
-                          className={`h-full ${
-                            isSelected ? 'w-full bg-purple-500' : 'w-1/3 bg-neutral-700'
-                          }`}
-                        />
+                        <div className="w-full h-1 bg-neutral-800 overflow-hidden">
+                          <div
+                            className={`h-full ${
+                              isSelected ? 'w-full bg-purple-500' : 'w-1/3 bg-neutral-700'
+                            }`}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </section>

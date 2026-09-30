@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
+import path from 'path';
+import fs from 'fs';
 import { supabase } from '../../../lib/supabase';
 import { ai, GEMINI_MODEL } from '../../../lib/gemini';
+import { mockDb } from '../../../lib/mockStore';
 import { Content } from '@google/genai';
 
 const SYSTEM_PROMPTS: Record<string, string> = {
@@ -39,24 +42,55 @@ export async function POST(request: Request) {
       .order('created_at', { ascending: true })
       .limit(15);
 
-    // 3. Baixa os bytes do PDF do Supabase Storage para enviar ao contexto do Gemini
-    const pdfResponse = await fetch(doc.file_url);
-    const pdfArrayBuffer = await pdfResponse.arrayBuffer();
-    const base64Pdf = Buffer.from(pdfArrayBuffer).toString('base64');
+    // 3. Baixa os bytes do PDF para enviar ao contexto do Gemini
+    let base64Pdf = '';
+    try {
+      if (doc.file_url.startsWith('data:')) {
+        base64Pdf = doc.file_url.split(',')[1] || '';
+      } else if (doc.file_url.startsWith('/api/storage/pdfs/')) {
+        const filename = decodeURIComponent(doc.file_url.replace('/api/storage/pdfs/', ''));
+        const file = mockDb.storage.get(filename);
+        if (file) {
+          base64Pdf = file.buffer.toString('base64');
+        }
+      } else if (doc.file_url.startsWith('/')) {
+        const filePath = path.join(process.cwd(), 'public', doc.file_url);
+        if (fs.existsSync(filePath)) {
+          base64Pdf = fs.readFileSync(filePath).toString('base64');
+        }
+      }
+
+      if (!base64Pdf) {
+        const fetchUrl = doc.file_url.startsWith('http')
+          ? doc.file_url
+          : `http://localhost:3000${doc.file_url.startsWith('/') ? '' : '/'}${doc.file_url}`;
+        const pdfResponse = await fetch(fetchUrl);
+        if (pdfResponse.ok) {
+          const pdfArrayBuffer = await pdfResponse.arrayBuffer();
+          base64Pdf = Buffer.from(pdfArrayBuffer).toString('base64');
+        }
+      }
+    } catch (err) {
+      console.warn('Não foi possível carregar os bytes do PDF para o Gemini:', err);
+    }
 
     // 4. Monta o contexto com o PDF + Histórico + Pergunta atual
+    type PartType = { text: string } | { inlineData: { data: string; mimeType: string } };
+    const firstUserParts: PartType[] = [];
+    if (base64Pdf) {
+      firstUserParts.push({
+        inlineData: {
+          data: base64Pdf,
+          mimeType: 'application/pdf',
+        },
+      });
+    }
+    firstUserParts.push({ text: `Resumo prévio do documento: ${doc.ai_summary}` });
+
     const contents: Content[] = [
       {
         role: 'user',
-        parts: [
-          {
-            inlineData: {
-              data: base64Pdf,
-              mimeType: 'application/pdf',
-            },
-          },
-          { text: `Resumo prévio do documento: ${doc.ai_summary}` },
-        ],
+        parts: firstUserParts,
       },
     ];
 
