@@ -6,8 +6,14 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
-  const filename = decodeURIComponent(path.join('/'));
-  const file = mockDb.storage.get(filename);
+  const rawPath = path.join('/');
+  let filename = rawPath;
+  try {
+    filename = decodeURIComponent(rawPath);
+  } catch {
+    filename = rawPath;
+  }
+  const file = mockDb.storage.get(filename) || mockDb.storage.get(rawPath);
 
   if (!file) {
     return new NextResponse('File not found', { status: 404 });

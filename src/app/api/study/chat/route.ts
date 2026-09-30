@@ -48,8 +48,14 @@ export async function POST(request: Request) {
       if (doc.file_url.startsWith('data:')) {
         base64Pdf = doc.file_url.split(',')[1] || '';
       } else if (doc.file_url.startsWith('/api/storage/pdfs/')) {
-        const filename = decodeURIComponent(doc.file_url.replace('/api/storage/pdfs/', ''));
-        const file = mockDb.storage.get(filename);
+        const rawPart = doc.file_url.replace('/api/storage/pdfs/', '');
+        let filename = rawPart;
+        try {
+          filename = decodeURIComponent(rawPart);
+        } catch {
+          filename = rawPart;
+        }
+        const file = mockDb.storage.get(filename) || mockDb.storage.get(rawPart);
         if (file) {
           base64Pdf = file.buffer.toString('base64');
         }

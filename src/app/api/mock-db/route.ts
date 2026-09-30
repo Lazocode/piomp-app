@@ -9,6 +9,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: mockDb.getDocuments() });
   }
 
+  if (table === 'folders') {
+    return NextResponse.json({ data: mockDb.folders });
+  }
+
+  if (table === 'tags') {
+    return NextResponse.json({ data: mockDb.tags });
+  }
+
   if (table === 'study_messages') {
     const documentId = searchParams.get('document_id');
     const messages = mockDb.getMessages(documentId || '');
@@ -25,7 +33,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action, table, payload } = body;
 
-    if (action === 'delete' && table === 'documents') {
+    if (action === 'delete' && table === 'documents' && payload?.id) {
       mockDb.deleteDocument(payload.id);
       return NextResponse.json({ success: true });
     }
