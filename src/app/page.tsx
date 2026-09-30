@@ -64,7 +64,7 @@ const STUDY_MODES_CONFIG: Record<
     title: 'Explicativo',
     role: 'Professor Sênior',
     description:
-      'Didático e direto ao ponto. Traduz conceitos complexos com analogias claras e exemplos de mercado.',
+      'Didático e direto ao ponto. Traduz conceitos complexos com analogias claras e exemplos práticos.',
     icon: BookOpen,
   },
   quiz: {
@@ -112,7 +112,7 @@ export default function HomePage() {
   const [studyMode, setStudyMode] = useState<StudyMode>('socratico');
   const [loadingChat, setLoadingChat] = useState(false);
 
-  // Aba ativa para telas menores (< xl)
+  // Aba ativa para telas menores (< lg)
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSummary, setCopiedSummary] = useState(false);
@@ -202,7 +202,7 @@ export default function HomePage() {
 
       await refreshDocuments();
       setSelectedDoc(data.document);
-      setActiveTab('doc');
+      setActiveTab('doc'); // Redireciona para o resumo em telas menores
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro inesperado';
       alert(msg);
@@ -295,21 +295,28 @@ export default function HomePage() {
     selectedDoc?.document_tags?.map((t) => t.tags?.name).filter(Boolean) || [];
 
   return (
-    <div className="min-h-screen xl:h-screen w-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden xl:overflow-hidden text-base">
+    <div className="min-h-dvh lg:h-dvh w-full bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden lg:overflow-hidden text-base">
       
       {/* =========================================================
-          BARRA SUPERIOR (HEADER)
+          BARRA SUPERIOR (HEADER RESPONSIVO)
       ========================================================= */}
-      <header className="h-14 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-3">
-          <span className="font-bold text-base sm:text-lg tracking-tight text-white">
+      <header className="h-14 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <span className="font-bold text-base sm:text-lg tracking-tight text-white shrink-0">
             PoimpStudy
           </span>
+
+          {selectedDoc && (
+            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-0.5 max-w-[200px] lg:max-w-[260px] truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">{selectedDoc.title}</span>
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40">
-            <UploadCloud className="w-4 h-4" />
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <label className="cursor-pointer inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40">
+            <UploadCloud className="w-4 h-4 shrink-0" />
             <span>Adicionar PDF</span>
             <input
               type="file"
@@ -323,64 +330,66 @@ export default function HomePage() {
       </header>
 
       {/* =========================================================
-          NAVEGAÇÃO DE ABAS MÓVEL (< XL)
+          NAVEGAÇÃO DE ABAS PARA TELAS PEQUENAS E MÉDIAS (< LG)
       ========================================================= */}
-      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-zinc-950 border-b border-zinc-800 p-1.5 shrink-0">
-        <button
-          type="button"
-          onClick={() => setActiveTab('files')}
-          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'files'
-              ? 'bg-purple-600 text-white shadow-sm'
-              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
-          }`}
-        >
-          <Folder className="w-4 h-4" />
-          <span>Arquivos ({filteredDocuments.length})</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('doc')}
-          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'doc'
-              ? 'bg-purple-600 text-white shadow-sm'
-              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Resumo</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('chat')}
-          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'chat'
-              ? 'bg-purple-600 text-white shadow-sm'
-              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
-          }`}
-        >
-          <Brain className="w-4 h-4" />
-          <span>Estudo</span>
-        </button>
+      <nav className="lg:hidden p-2 sm:p-3 pb-0 shrink-0">
+        <div className="grid grid-cols-3 gap-1 bg-zinc-950/90 border border-zinc-800 rounded-xl p-1 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setActiveTab('files')}
+            className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 min-h-[42px] ${
+              activeTab === 'files'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <Folder className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="truncate">Arquivos ({filteredDocuments.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('doc')}
+            className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 min-h-[42px] ${
+              activeTab === 'doc'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="truncate">Resumo</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('chat')}
+            className={`py-2 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 min-h-[42px] ${
+              activeTab === 'chat'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="truncate">Estudo</span>
+          </button>
+        </div>
       </nav>
 
       {/* =========================================================
-          DISPOSIÇÃO PRINCIPAL: 3 COLUNAS (TEMPLATE PRESERVADO)
+          DISPOSIÇÃO PRINCIPAL: 3 COLUNAS RESPONSIVAS
       ========================================================= */}
-      <div className="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col xl:grid xl:grid-cols-12 gap-4 max-w-[1920px] w-full mx-auto">
+      <div className="flex-1 p-2 sm:p-3 md:p-4 overflow-hidden flex flex-col lg:grid lg:grid-cols-12 gap-3 sm:gap-4 max-w-[1920px] w-full mx-auto">
         
         {/* =========================================================
-            COLUNA 1: ARQUIVOS (ESQUERDA - 3 COLUNAS)
+            COLUNA 1: ARQUIVOS (ESQUERDA - 4 COLUNAS EM LG / 3 EM XL)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-3 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
-            activeTab === 'files' ? 'flex' : 'hidden xl:flex'
+          className={`col-span-12 lg:col-span-4 xl:col-span-3 flex-col h-[calc(100dvh-7.8rem)] sm:h-[calc(100dvh-8.5rem)] lg:h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
+            activeTab === 'files' ? 'flex' : 'hidden lg:flex'
           }`}
         >
           {/* Header da Coluna 1 */}
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
+          <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-4 bg-purple-500 rounded-full" />
+              <span className="w-2 h-4 bg-purple-500 rounded-full shrink-0" />
               <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 01. Repositório
               </span>
@@ -391,8 +400,8 @@ export default function HomePage() {
             </span>
           </div>
 
-          <div className="p-3.5 flex flex-col gap-3 flex-1 overflow-hidden min-h-[400px] xl:min-h-0">
-            {/* Campo de Busca com Letras Nítidas */}
+          <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 flex-1 overflow-hidden min-h-0">
+            {/* Campo de Busca */}
             <div className="relative flex items-center shrink-0">
               <Search className="w-4 h-4 absolute left-3 text-zinc-400 pointer-events-none" />
               <input
@@ -400,7 +409,7 @@ export default function HomePage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar por título ou tag..."
-                className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl text-xs sm:text-sm text-zinc-100 pl-9 pr-8 py-2.5 placeholder:text-zinc-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/40 transition-all font-medium"
+                className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl text-xs sm:text-sm text-zinc-100 pl-9 pr-8 py-2 sm:py-2.5 placeholder:text-zinc-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/40 transition-all font-medium"
               />
               {searchQuery && (
                 <button
@@ -414,15 +423,15 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Botão de Upload Destacado */}
+            {/* Botão de Upload com Destaque */}
             <label
-              className={`w-full py-2.5 px-3 border border-dashed rounded-xl text-xs sm:text-sm font-semibold text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
+              className={`w-full py-2 sm:py-2.5 px-3 border border-dashed rounded-xl text-xs sm:text-sm font-semibold text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
                 uploading
                   ? 'bg-purple-950/40 border-purple-500 text-purple-200 animate-pulse'
                   : 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:border-purple-500 hover:bg-zinc-800 hover:text-white'
               }`}
             >
-              <UploadCloud className="w-4 h-4 text-purple-400" />
+              <UploadCloud className="w-4 h-4 text-purple-400 shrink-0" />
               <span>{uploading ? 'Processando e analisando...' : 'Fazer Upload de Novo PDF'}</span>
               <input
                 type="file"
@@ -433,10 +442,10 @@ export default function HomePage() {
               />
             </label>
 
-            {/* Grid de Documentos */}
+            {/* Grid de Documentos com Quebra Responsiva */}
             <div className="flex-1 overflow-y-auto pr-1">
               {filteredDocuments.length === 0 ? (
-                <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
                   <FileText className="w-8 h-8 text-zinc-500 mb-2" />
                   <p className="text-sm font-semibold text-zinc-200 mb-1">
                     Nenhum documento encontrado
@@ -461,7 +470,7 @@ export default function HomePage() {
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-1 gap-2.5">
                   {filteredDocuments.map((doc, idx) => {
                     const isSelected = selectedDoc?.id === doc.id;
                     const isDeleting = deletingId === doc.id;
@@ -490,9 +499,9 @@ export default function HomePage() {
                       >
                         {/* Linha superior do card */}
                         <div className="flex items-center justify-between gap-1 mb-2">
-                          <div className="flex items-center gap-1.5 truncate">
+                          <div className="flex items-center gap-1.5 truncate min-w-0">
                             <span
-                              className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
+                              className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
                                 isSelected
                                   ? 'bg-purple-500/30 text-purple-200'
                                   : 'bg-zinc-800 text-zinc-300'
@@ -509,18 +518,18 @@ export default function HomePage() {
                             type="button"
                             title="Remover documento"
                             onClick={(e) => handleDeleteDocument(doc, e)}
-                            className="p-1 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                            className="p-1.5 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        {/* Título do PDF em Tamanho Legível */}
+                        {/* Título do PDF */}
                         <p className="text-xs sm:text-sm font-semibold line-clamp-2 leading-snug mb-2 group-hover:text-purple-200 transition-colors text-zinc-100">
                           {doc.title}
                         </p>
 
-                        {/* Tags Técnicas Claras */}
+                        {/* Tags Técnicas */}
                         {doc.document_tags && doc.document_tags.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-2.5">
                             {doc.document_tags.slice(0, 3).map((t, tIdx) => {
@@ -567,46 +576,46 @@ export default function HomePage() {
         </section>
 
         {/* =========================================================
-            COLUNA 2: ESTRUTURA E RESUMO (CENTRO - 5 COLUNAS)
+            COLUNA 2: ESTRUTURA E RESUMO (CENTRO - 4 COLUNAS EM LG / 5 EM XL)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-5 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
-            activeTab === 'doc' ? 'flex' : 'hidden xl:flex'
+          className={`col-span-12 lg:col-span-4 xl:col-span-5 flex-col h-[calc(100dvh-7.8rem)] sm:h-[calc(100dvh-8.5rem)] lg:h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
+            activeTab === 'doc' ? 'flex' : 'hidden lg:flex'
           }`}
         >
           {/* Header da Coluna 2 */}
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
+          <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-4 bg-indigo-500 rounded-full" />
+              <span className="w-2 h-4 bg-indigo-500 rounded-full shrink-0" />
               <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 02. Análise & Síntese
               </span>
             </div>
 
             {selectedDoc && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => setShowPdfPreview(!showPdfPreview)}
-                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all ${
                     showPdfPreview
                       ? 'bg-purple-600 text-white'
                       : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
                   }`}
                   title="Alternar pré-visualização do PDF"
                 >
-                  {showPdfPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  <span>{showPdfPreview ? 'Ocultar PDF' : 'Ver PDF'}</span>
+                  {showPdfPreview ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  <span>{showPdfPreview ? 'Ocultar' : 'Ver PDF'}</span>
                 </button>
 
                 <a
                   href={selectedDoc.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all"
+                  className="px-2.5 sm:px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all"
                   title="Abrir arquivo PDF original em nova aba"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">Abrir</span>
                 </a>
 
@@ -617,18 +626,18 @@ export default function HomePage() {
                   className="p-1.5 bg-zinc-800 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 rounded-lg transition-all"
                   title="Excluir documento"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="p-3.5 sm:p-4 flex flex-col gap-3.5 flex-1 overflow-y-auto min-h-[450px] xl:min-h-0">
+          <div className="p-3 sm:p-4 flex flex-col gap-3 sm:gap-3.5 flex-1 overflow-y-auto min-h-0">
             {selectedDoc ? (
               <>
                 {/* Visualizador de PDF Opcional */}
                 {showPdfPreview && (
-                  <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-950 h-72 shrink-0 flex flex-col">
+                  <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-950 h-60 sm:h-72 shrink-0 flex flex-col">
                     <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs font-medium text-zinc-300 flex items-center justify-between">
                       <span>Visualizador Embutido</span>
                       <a
@@ -649,9 +658,9 @@ export default function HomePage() {
                 )}
 
                 {/* Card de Título e Metadados Principais */}
-                <div className="p-4 sm:p-5 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30 uppercase tracking-wide">
+                <div className="p-3.5 sm:p-5 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2 sm:mb-2.5">
+                    <span className="text-xs font-semibold px-2.5 py-0.5 sm:py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30 uppercase tracking-wide">
                       {selectedDoc.folders?.name || 'Geral'}
                     </span>
                     <span className="text-zinc-500 text-sm">•</span>
@@ -665,7 +674,7 @@ export default function HomePage() {
                   </h2>
 
                   {activeTags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3.5 pt-3.5 border-t border-zinc-800">
+                    <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3 pt-3 border-t border-zinc-800">
                       {activeTags.map((tag, i) => (
                         <span
                           key={i}
@@ -678,24 +687,24 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Grade de Estatísticas e Metadados com Letras Claras */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1">
-                      <Folder className="w-4 h-4 text-purple-400" />
+                {/* Grade de Estatísticas */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="p-3 sm:p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    <div className="flex items-center gap-1.5 text-zinc-400 text-xs font-semibold mb-1">
+                      <Folder className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 shrink-0" />
                       <span>CATEGORIA</span>
                     </div>
-                    <span className="text-sm font-bold text-purple-200 uppercase truncate block">
+                    <span className="text-xs sm:text-sm font-bold text-purple-200 uppercase truncate block">
                       {selectedDoc.folders?.name || 'Geral'}
                     </span>
                   </div>
 
-                  <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
-                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1">
-                      <Calendar className="w-4 h-4 text-indigo-400" />
+                  <div className="p-3 sm:p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    <div className="flex items-center gap-1.5 text-zinc-400 text-xs font-semibold mb-1">
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 shrink-0" />
                       <span>INDEXAÇÃO</span>
                     </div>
-                    <span className="text-sm font-semibold text-zinc-200 block">
+                    <span className="text-xs sm:text-sm font-semibold text-zinc-200 block truncate">
                       {new Date(selectedDoc.created_at).toLocaleDateString('pt-BR', {
                         day: '2-digit',
                         month: 'short',
@@ -705,34 +714,34 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Card de Síntese com Alta Legibilidade */}
-                <div className="flex-1 flex flex-col rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-sm">
-                  <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
+                {/* Card de Síntese */}
+                <div className="flex-1 flex flex-col rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-sm min-h-[180px]">
+                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
-                      <Sparkles className="w-4 h-4 text-purple-400" />
-                      <span>Síntese Executiva Gerada por IA</span>
+                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span className="truncate">Síntese Executiva Gerada por IA</span>
                     </div>
                     <button
                       type="button"
                       onClick={handleCopySummary}
-                      className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-zinc-800"
+                      className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-zinc-800 shrink-0"
                       title="Copiar resumo"
                     >
                       {copiedSummary ? (
                         <>
-                          <Check className="w-4 h-4 text-emerald-400" />
+                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
                           <span className="text-emerald-400">Copiado!</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           <span>Copiar</span>
                         </>
                       )}
                     </button>
                   </div>
 
-                  <div className="p-4 sm:p-5 flex-1 overflow-y-auto">
+                  <div className="p-3.5 sm:p-5 flex-1 overflow-y-auto">
                     <p className="text-sm sm:text-base text-zinc-100 leading-relaxed whitespace-pre-wrap font-sans font-normal selection:bg-purple-500/40">
                       {selectedDoc.ai_summary}
                     </p>
@@ -744,7 +753,7 @@ export default function HomePage() {
                 <FileText className="w-10 h-10 text-zinc-500 mb-2.5" />
                 <p className="text-sm font-bold text-zinc-200">Nenhum documento selecionado</p>
                 <p className="text-xs text-zinc-400 mt-1 max-w-xs">
-                  Selecione um arquivo da lista ao lado para inspecionar seu resumo e metadados.
+                  Selecione um arquivo da lista para inspecionar seu resumo e metadados.
                 </p>
               </div>
             )}
@@ -752,27 +761,27 @@ export default function HomePage() {
         </section>
 
         {/* =========================================================
-            COLUNA 3: TERMINAL DE ESTUDO (DIREITA - 4 COLUNAS)
+            COLUNA 3: TERMINAL DE ESTUDO (DIREITA - 4 COLUNAS EM LG/XL)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-4 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
-            activeTab === 'chat' ? 'flex' : 'hidden xl:flex'
+          className={`col-span-12 lg:col-span-4 xl:col-span-4 flex-col h-[calc(100dvh-7.8rem)] sm:h-[calc(100dvh-8.5rem)] lg:h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
+            activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
           }`}
         >
           {/* Header da Coluna 3 */}
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
+          <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-4 bg-purple-500 rounded-full" />
+              <span className="w-2 h-4 bg-purple-500 rounded-full shrink-0" />
               <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 03. Tutor de Estudos IA
               </span>
             </div>
           </div>
 
-          <div className="p-3.5 sm:p-4 flex flex-col gap-3 flex-1 overflow-hidden min-h-[520px] xl:min-h-0">
+          <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 flex-1 overflow-hidden min-h-0">
             
-            {/* Seletor de Modo de Estudo com Letras Nítidas */}
-            <div className="grid grid-cols-3 gap-2 shrink-0">
+            {/* Seletor de Modo de Estudo */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0">
               {(['socratico', 'explicativo', 'quiz'] as const).map((mode) => {
                 const active = studyMode === mode;
                 const info = STUDY_MODES_CONFIG[mode];
@@ -782,17 +791,17 @@ export default function HomePage() {
                     key={mode}
                     type="button"
                     onClick={() => setStudyMode(mode)}
-                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       active
                         ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40'
                         : 'bg-zinc-950 border-zinc-700/80 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900 hover:text-white'
                     }`}
                   >
-                    <span className="text-xs sm:text-sm font-bold tracking-tight block mb-1">
+                    <span className="text-xs sm:text-sm font-bold tracking-tight block mb-0.5 truncate">
                       {info.title}
                     </span>
                     <span
-                      className={`text-xs font-semibold truncate ${
+                      className={`text-[11px] sm:text-xs font-semibold truncate ${
                         active ? 'text-purple-100' : 'text-zinc-400'
                       }`}
                     >
@@ -803,8 +812,8 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Descrição Didática Legível */}
-            <div className="px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5 shrink-0">
+            {/* Descrição Didática */}
+            <div className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2 shrink-0">
               <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
               <p className="text-xs sm:text-sm text-zinc-200 leading-snug">
                 <span className="font-bold text-purple-300">
@@ -814,12 +823,12 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Mensagens do Chat com Alta Legibilidade */}
-            <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 overflow-y-auto space-y-3 min-h-[220px]">
+            {/* Mensagens do Chat */}
+            <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-3 sm:p-3.5 overflow-y-auto space-y-3 min-h-0">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
-                  <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-2.5">
-                    <MessageSquare className="w-6 h-6" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-4 sm:p-6 text-zinc-400">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-2">
+                    <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
                   <p className="text-sm font-bold text-zinc-200">Workspace de Estudo Pronto</p>
                   <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-[280px]">
@@ -832,23 +841,23 @@ export default function HomePage() {
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                      className={`flex gap-2 sm:gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                     >
                       {!isUser && (
-                        <div className="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
-                          <Bot className="w-4 h-4" />
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                          <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
                       )}
 
                       <div
-                        className={`max-w-[85%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
+                        className={`max-w-[88%] sm:max-w-[85%] rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
                           isUser
                             ? 'bg-purple-600 text-white rounded-tr-xs shadow-md shadow-purple-950/50'
                             : 'bg-zinc-900 border border-zinc-700/80 text-zinc-100 rounded-tl-xs shadow-sm'
                         }`}
                       >
                         <div
-                          className={`text-xs font-bold uppercase mb-1.5 ${
+                          className={`text-xs font-bold uppercase mb-1 ${
                             isUser ? 'text-purple-100' : 'text-purple-300'
                           }`}
                         >
@@ -858,8 +867,8 @@ export default function HomePage() {
                       </div>
 
                       {isUser && (
-                        <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0 mt-0.5">
-                          <User className="w-4 h-4" />
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0 mt-0.5">
+                          <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
                       )}
                     </div>
@@ -868,11 +877,11 @@ export default function HomePage() {
               )}
 
               {loadingChat && (
-                <div className="flex gap-2.5 items-start">
-                  <div className="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
-                    <Bot className="w-4 h-4 animate-pulse" />
+                <div className="flex gap-2 sm:gap-2.5 items-start">
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-pulse" />
                   </div>
-                  <div className="bg-zinc-900 border border-zinc-700/80 text-purple-200 rounded-2xl rounded-tl-xs p-3.5 text-xs sm:text-sm flex items-center gap-2 font-medium">
+                  <div className="bg-zinc-900 border border-zinc-700/80 text-purple-200 rounded-2xl rounded-tl-xs p-3 sm:p-3.5 text-xs sm:text-sm flex items-center gap-2 font-medium">
                     <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
                     <span>Gemini analisando contexto e formulando resposta...</span>
                   </div>
@@ -882,11 +891,11 @@ export default function HomePage() {
             </div>
 
             {/* Sugestões de Perguntas Rápidas */}
-            <div className="space-y-1.5 shrink-0">
+            <div className="space-y-1 shrink-0">
               <span className="text-xs font-semibold text-zinc-400 px-1 block">
-                SUGESTÕES PARA O MODO ATIVO:
+                SUGESTÕES:
               </span>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 max-h-20 sm:max-h-24 overflow-y-auto">
                 {QUICK_PROMPTS[studyMode].map((prompt, pIdx) => (
                   <button
                     key={pIdx}
@@ -895,7 +904,7 @@ export default function HomePage() {
                       setInputMsg(prompt);
                       inputRef.current?.focus();
                     }}
-                    className="text-xs font-medium text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 transition-all text-left truncate max-w-full"
+                    className="text-xs font-medium text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all text-left truncate max-w-full"
                   >
                     💡 {prompt}
                   </button>
@@ -903,9 +912,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Formulário de Envio com Letras Confortáveis */}
+            {/* Formulário de Envio */}
             <form onSubmit={(e) => handleSendMessage(e)} className="shrink-0">
-              <div className="relative flex items-center bg-zinc-950 border border-zinc-700 rounded-xl p-1.5 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/40 transition-all">
+              <div className="relative flex items-center bg-zinc-950 border border-zinc-700 rounded-xl p-1 sm:p-1.5 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/40 transition-all">
                 <input
                   ref={inputRef}
                   type="text"
@@ -917,12 +926,12 @@ export default function HomePage() {
                       ? 'Faça uma pergunta sobre o documento...'
                       : 'Selecione um PDF antes de interagir...'
                   }
-                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-400 px-3 py-2 focus:outline-none font-medium"
+                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-400 px-2.5 sm:px-3 py-2 focus:outline-none font-medium"
                 />
                 <button
                   type="submit"
                   disabled={!selectedDoc || loadingChat || !inputMsg.trim()}
-                  className="p-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/40 font-semibold"
+                  className="p-2 sm:p-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/40 font-semibold"
                   title="Enviar mensagem"
                 >
                   <Send className="w-4 h-4" />
