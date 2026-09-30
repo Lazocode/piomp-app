@@ -134,8 +134,9 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Erro no chat:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno';
     return NextResponse.json(
-      { error: `Erro no chat de estudo: ${ (error as Error).message }` },
+      { error: `Erro no chat de estudo: ${errorMessage}` },
       { status: 500 }
     );
   }

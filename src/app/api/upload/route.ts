@@ -67,7 +67,26 @@ export async function POST(request: Request) {
     } else if (rawText.startsWith('```')) {
       rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
     }
-    const analysis = JSON.parse(rawText || '{}');
+
+    interface AnalysisResult {
+      summary?: string;
+      suggested_folder?: string;
+      suggested_tags?: string[];
+    }
+
+    let analysis: AnalysisResult = {};
+    try {
+      analysis = JSON.parse(rawText || '{}');
+    } catch {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          analysis = JSON.parse(jsonMatch[0]);
+        } catch {
+          analysis = {};
+        }
+      }
+    }
 
     // 3. Verifica se a pasta sugerida já existe ou cria uma nova
     const folderName = (analysis.suggested_folder || 'Geral').trim();
@@ -147,8 +166,9 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     console.error('Erro no upload:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Erro interno';
     return NextResponse.json(
-      { error: `Erro ao processar PDF: ${ (error as Error).message }` },
+      { error: `Erro ao processar PDF: ${errorMessage}` },
       { status: 500 }
     );
   }

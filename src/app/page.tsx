@@ -23,6 +23,7 @@ import {
   Bot,
   User,
   ArrowRight,
+  AlertCircle,
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
@@ -117,6 +118,18 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [docToDeleteConfirm, setDocToDeleteConfirm] = useState<DocumentItem | null>(null);
+
+  function triggerNotification(message: string, type: 'success' | 'error' = 'error') {
+    setNotification({ message, type });
+    setTimeout(() => {
+      setNotification((curr) => (curr?.message === message ? null : curr));
+    }, 4500);
+  }
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -203,23 +216,25 @@ export default function HomePage() {
       await refreshDocuments();
       setSelectedDoc(data.document);
       setActiveTab('doc'); // Redireciona para o resumo em telas menores
+      triggerNotification('Documento enviado e indexado com sucesso!', 'success');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro inesperado';
-      alert(msg);
+      const msg = err instanceof Error ? err.message : 'Erro inesperado no envio';
+      triggerNotification(msg, 'error');
     } finally {
       setUploading(false);
       e.target.value = '';
     }
   }
 
-  async function handleDeleteDocument(docToDelete: DocumentItem, e?: React.MouseEvent) {
+  function requestDeleteDocument(docToDelete: DocumentItem, e?: React.MouseEvent) {
     if (e) e.stopPropagation();
+    setDocToDeleteConfirm(docToDelete);
+  }
 
-    const confirmed = window.confirm(
-      `Deseja remover permanentemente o arquivo "${docToDelete.title}" e todo o histórico de estudo?`
-    );
-    if (!confirmed) return;
-
+  async function executeDeleteDocument() {
+    if (!docToDeleteConfirm) return;
+    const docToDelete = docToDeleteConfirm;
+    setDocToDeleteConfirm(null);
     setDeletingId(docToDelete.id);
 
     try {
@@ -244,9 +259,10 @@ export default function HomePage() {
         setSelectedDoc(nextDoc);
         if (!nextDoc) setMessages([]);
       }
+      triggerNotification(`Documento "${docToDelete.title}" excluído com sucesso.`, 'success');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao remover PDF';
-      alert(msg);
+      triggerNotification(msg, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -277,8 +293,8 @@ export default function HomePage() {
 
       setMessages((prev) => [...prev, { role: 'model', content: data.reply }]);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Erro inesperado';
-      alert(msg);
+      const msg = err instanceof Error ? err.message : 'Erro inesperado na conversa';
+      triggerNotification(msg, 'error');
     } finally {
       setLoadingChat(false);
     }
@@ -517,7 +533,7 @@ export default function HomePage() {
                           <button
                             type="button"
                             title="Remover documento"
-                            onClick={(e) => handleDeleteDocument(doc, e)}
+                            onClick={(e) => requestDeleteDocument(doc, e)}
                             className="p-1.5 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -621,7 +637,7 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  onClick={() => handleDeleteDocument(selectedDoc)}
+                  onClick={() => requestDeleteDocument(selectedDoc)}
                   disabled={deletingId === selectedDoc.id}
                   className="p-1.5 bg-zinc-800 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 rounded-lg transition-all"
                   title="Excluir documento"
@@ -943,6 +959,76 @@ export default function HomePage() {
         </section>
 
       </div>
+
+      {/* =========================================================
+          FEEDBACK VISUAL: TOAST DE NOTIFICAÇÃO (SEM ALERT BLOQUEANTE)
+      ========================================================= */}
+      {notification && (
+        <div
+          role="status"
+          className={`fixed bottom-4 right-4 z-50 max-w-sm sm:max-w-md p-3.5 rounded-xl border shadow-xl flex items-center justify-between gap-3 text-xs sm:text-sm font-medium transition-all ${
+            notification.type === 'success'
+              ? 'bg-emerald-950/95 border-emerald-500/70 text-emerald-200'
+              : 'bg-red-950/95 border-red-500/70 text-red-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notification.type === 'success' ? (
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            )}
+            <span>{notification.message}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="p-1 hover:opacity-75 transition-opacity"
+            title="Fechar"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* =========================================================
+          MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (SEM WINDOW.CONFIRM)
+      ========================================================= */}
+      {docToDeleteConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-md w-full shadow-2xl text-left">
+            <h3 className="text-base font-bold text-white mb-2 flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-red-400" />
+              <span>Remover documento?</span>
+            </h3>
+            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed mb-4">
+              Deseja remover permanentemente o arquivo &quot;
+              <span className="text-white font-semibold">{docToDeleteConfirm.title}</span>
+              &quot; e todo o histórico de estudo associado?
+            </p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setDocToDeleteConfirm(null)}
+                className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={executeDeleteDocument}
+                className="px-3.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+              >
+                Confirmar Exclusão
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
