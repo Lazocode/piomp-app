@@ -22,7 +22,6 @@ import {
   MessageSquare,
   Bot,
   User,
-  Layers,
   ArrowRight,
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -52,7 +51,7 @@ type ActiveTab = 'files' | 'doc' | 'chat';
 
 const STUDY_MODES_CONFIG: Record<
   StudyMode,
-  { title: string; role: string; description: string; icon: typeof Brain; badgeColor: string }
+  { title: string; role: string; description: string; icon: typeof Brain }
 > = {
   socratico: {
     title: 'Socrático',
@@ -60,15 +59,13 @@ const STUDY_MODES_CONFIG: Record<
     description:
       'Estimula seu raciocínio crítico apontando pontos cegos e devolvendo perguntas reflexivas.',
     icon: Brain,
-    badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
   },
   explicativo: {
     title: 'Explicativo',
     role: 'Professor Sênior',
     description:
-      'Didático e direto. Traduz conceitos complexos com analogias claras e exemplos de mercado.',
+      'Didático e direto ao ponto. Traduz conceitos complexos com analogias claras e exemplos de mercado.',
     icon: BookOpen,
-    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
   },
   quiz: {
     title: 'Quiz Técnico',
@@ -76,7 +73,6 @@ const STUDY_MODES_CONFIG: Record<
     description:
       'Simula provas e entrevistas elaborando questões arquiteturais e avaliando suas respostas.',
     icon: HelpCircle,
-    badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
   },
 };
 
@@ -116,7 +112,7 @@ export default function HomePage() {
   const [studyMode, setStudyMode] = useState<StudyMode>('socratico');
   const [loadingChat, setLoadingChat] = useState(false);
 
-  // Aba ativa para ecrãs menores (< xl)
+  // Aba ativa para telas menores (< xl)
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedSummary, setCopiedSummary] = useState(false);
@@ -206,7 +202,7 @@ export default function HomePage() {
 
       await refreshDocuments();
       setSelectedDoc(data.document);
-      setActiveTab('doc'); // Redireciona para o resumo no telemóvel
+      setActiveTab('doc');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro inesperado';
       alert(msg);
@@ -298,28 +294,23 @@ export default function HomePage() {
   const activeTags =
     selectedDoc?.document_tags?.map((t) => t.tags?.name).filter(Boolean) || [];
 
-  const CurrentModeIcon = STUDY_MODES_CONFIG[studyMode].icon;
-
   return (
-    <div className="min-h-screen xl:h-screen w-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden xl:overflow-hidden">
+    <div className="min-h-screen xl:h-screen w-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden xl:overflow-hidden text-base">
       
       {/* =========================================================
-          BARRA SUPERIOR (HEADER MODERNO)
+          BARRA SUPERIOR (HEADER)
       ========================================================= */}
-      <header className="h-14 border-b border-zinc-800/80 bg-zinc-950/70 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
+      <header className="h-14 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm tracking-tight text-zinc-100">
-              PoimpStudy
-            </span>
-          </div>
+          <span className="font-bold text-base sm:text-lg tracking-tight text-white">
+            PoimpStudy
+          </span>
         </div>
 
-        {/* Contador e Ação Rápida */}
         <div className="flex items-center gap-3">
-          <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium transition-all shadow-sm shadow-purple-900/40">
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Adicionar PDF</span>
+          <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40">
+            <UploadCloud className="w-4 h-4" />
+            <span>Adicionar PDF</span>
             <input
               type="file"
               accept="application/pdf"
@@ -334,101 +325,101 @@ export default function HomePage() {
       {/* =========================================================
           NAVEGAÇÃO DE ABAS MÓVEL (< XL)
       ========================================================= */}
-      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-zinc-950/90 border-b border-zinc-800/80 p-1.5 shrink-0">
+      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-zinc-950 border-b border-zinc-800 p-1.5 shrink-0">
         <button
           type="button"
           onClick={() => setActiveTab('files')}
-          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'files'
-              ? 'bg-purple-600/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
           }`}
         >
-          <Folder className="w-3.5 h-3.5" />
+          <Folder className="w-4 h-4" />
           <span>Arquivos ({filteredDocuments.length})</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('doc')}
-          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'doc'
-              ? 'bg-purple-600/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" />
+          <FileText className="w-4 h-4" />
           <span>Resumo</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('chat')}
-          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'chat'
-              ? 'bg-purple-600/90 text-white shadow-sm'
-              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
+              ? 'bg-purple-600 text-white shadow-sm'
+              : 'text-zinc-300 hover:text-white hover:bg-zinc-900'
           }`}
         >
-          <Brain className="w-3.5 h-3.5" />
+          <Brain className="w-4 h-4" />
           <span>Estudo</span>
         </button>
       </nav>
 
       {/* =========================================================
-          DISPOSIÇÃO PRINCIPAL: 3 COLUNAS (LAYOUT DO TEMPLATE PRESERVADO)
+          DISPOSIÇÃO PRINCIPAL: 3 COLUNAS (TEMPLATE PRESERVADO)
       ========================================================= */}
-      <div className="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col xl:grid xl:grid-cols-12 gap-3.5 max-w-[1920px] w-full mx-auto">
+      <div className="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col xl:grid xl:grid-cols-12 gap-4 max-w-[1920px] w-full mx-auto">
         
         {/* =========================================================
             COLUNA 1: ARQUIVOS (ESQUERDA - 3 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-3 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
+          className={`col-span-12 xl:col-span-3 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
             activeTab === 'files' ? 'flex' : 'hidden xl:flex'
           }`}
         >
           {/* Header da Coluna 1 */}
-          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-3.5 bg-purple-500 rounded-full" />
-              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+              <span className="w-2 h-4 bg-purple-500 rounded-full" />
+              <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 01. Repositório
               </span>
             </div>
-            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300">
+            <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-200">
               {filteredDocuments.length}
               {searchQuery ? ` / ${documents.length}` : ''}
             </span>
           </div>
 
-          <div className="p-3 sm:p-3.5 flex flex-col gap-3 flex-1 overflow-hidden min-h-[400px] xl:min-h-0">
-            {/* Campo de Busca Moderno */}
+          <div className="p-3.5 flex flex-col gap-3 flex-1 overflow-hidden min-h-[400px] xl:min-h-0">
+            {/* Campo de Busca com Letras Nítidas */}
             <div className="relative flex items-center shrink-0">
-              <Search className="w-3.5 h-3.5 absolute left-3 text-zinc-500 pointer-events-none" />
+              <Search className="w-4 h-4 absolute left-3 text-zinc-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Buscar por título ou tag..."
-                className="w-full bg-zinc-950/70 border border-zinc-800 rounded-xl text-xs text-zinc-200 pl-8.5 pr-8 py-2 placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                className="w-full bg-zinc-950 border border-zinc-700/80 rounded-xl text-xs sm:text-sm text-zinc-100 pl-9 pr-8 py-2.5 placeholder:text-zinc-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/40 transition-all font-medium"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   title="Limpar busca"
-                  className="absolute right-2.5 p-0.5 text-zinc-500 hover:text-zinc-200 transition-colors"
+                  className="absolute right-2.5 p-1 text-zinc-400 hover:text-white transition-colors"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            {/* Botão de Upload com Destaque */}
+            {/* Botão de Upload Destacado */}
             <label
-              className={`w-full py-2 px-3 border border-dashed rounded-xl text-xs font-medium text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
+              className={`w-full py-2.5 px-3 border border-dashed rounded-xl text-xs sm:text-sm font-semibold text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
                 uploading
-                  ? 'bg-purple-950/30 border-purple-500 text-purple-300 animate-pulse'
-                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-purple-500/80 hover:bg-zinc-900 hover:text-purple-300'
+                  ? 'bg-purple-950/40 border-purple-500 text-purple-200 animate-pulse'
+                  : 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:border-purple-500 hover:bg-zinc-800 hover:text-white'
               }`}
             >
               <UploadCloud className="w-4 h-4 text-purple-400" />
@@ -445,26 +436,26 @@ export default function HomePage() {
             {/* Grid de Documentos */}
             <div className="flex-1 overflow-y-auto pr-1">
               {filteredDocuments.length === 0 ? (
-                <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-zinc-800/80 rounded-xl bg-zinc-950/20">
-                  <FileText className="w-7 h-7 text-zinc-600 mb-2" />
-                  <p className="text-xs font-medium text-zinc-300 mb-1">
+                <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/30">
+                  <FileText className="w-8 h-8 text-zinc-500 mb-2" />
+                  <p className="text-sm font-semibold text-zinc-200 mb-1">
                     Nenhum documento encontrado
                   </p>
                   {searchQuery ? (
                     <>
-                      <p className="text-[11px] text-zinc-500 max-w-[200px] truncate mb-3">
+                      <p className="text-xs text-zinc-400 max-w-[200px] truncate mb-3">
                         Termo: &quot;{searchQuery}&quot;
                       </p>
                       <button
                         type="button"
                         onClick={() => setSearchQuery('')}
-                        className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-medium transition-colors"
+                        className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg text-xs sm:text-sm font-medium transition-colors"
                       >
                         Limpar filtro
                       </button>
                     </>
                   ) : (
-                    <p className="text-[11px] text-zinc-500">
+                    <p className="text-xs text-zinc-400">
                       Adicione um arquivo PDF acima para começar seus estudos.
                     </p>
                   )}
@@ -493,23 +484,23 @@ export default function HomePage() {
                         }}
                         className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer relative group ${
                           isSelected
-                            ? 'bg-purple-950/25 border-purple-500/70 shadow-sm shadow-purple-900/20 ring-1 ring-purple-500/30 text-white'
-                            : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900/60 text-zinc-300'
+                            ? 'bg-purple-950/40 border-purple-500 shadow-md shadow-purple-950/50 ring-1 ring-purple-500/50 text-white'
+                            : 'bg-zinc-950/80 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900 text-zinc-200'
                         } ${isDeleting ? 'opacity-40 pointer-events-none' : ''}`}
                       >
                         {/* Linha superior do card */}
                         <div className="flex items-center justify-between gap-1 mb-2">
                           <div className="flex items-center gap-1.5 truncate">
                             <span
-                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                              className={`text-xs font-mono font-bold px-1.5 py-0.5 rounded ${
                                 isSelected
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : 'bg-zinc-800 text-zinc-400'
+                                  ? 'bg-purple-500/30 text-purple-200'
+                                  : 'bg-zinc-800 text-zinc-300'
                               }`}
                             >
                               #{String(idx + 1).padStart(2, '0')}
                             </span>
-                            <span className="text-[10px] font-medium uppercase tracking-wider text-purple-400/90 truncate">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-purple-300 truncate">
                               {folder}
                             </span>
                           </div>
@@ -518,20 +509,20 @@ export default function HomePage() {
                             type="button"
                             title="Remover documento"
                             onClick={(e) => handleDeleteDocument(doc, e)}
-                            className="p-1 rounded-md opacity-60 hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 text-zinc-400 transition-all"
+                            className="p-1 rounded-md text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
 
-                        {/* Título do PDF */}
-                        <p className="text-xs font-semibold line-clamp-2 leading-snug mb-2 group-hover:text-purple-200 transition-colors">
+                        {/* Título do PDF em Tamanho Legível */}
+                        <p className="text-xs sm:text-sm font-semibold line-clamp-2 leading-snug mb-2 group-hover:text-purple-200 transition-colors text-zinc-100">
                           {doc.title}
                         </p>
 
-                        {/* Tags Técnicas com Destaque */}
+                        {/* Tags Técnicas Claras */}
                         {doc.document_tags && doc.document_tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-2">
+                          <div className="flex flex-wrap gap-1.5 mb-2.5">
                             {doc.document_tags.slice(0, 3).map((t, tIdx) => {
                               const tagName = t.tags?.name;
                               if (!tagName) return null;
@@ -541,10 +532,10 @@ export default function HomePage() {
                               return (
                                 <span
                                   key={tIdx}
-                                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded truncate max-w-[100px] ${
+                                  className={`text-xs font-medium px-2 py-0.5 rounded-md truncate max-w-[120px] ${
                                     isTagMatch
-                                      ? 'bg-purple-900/80 text-purple-200 border border-purple-500/50 font-bold'
-                                      : 'bg-zinc-900 border border-zinc-800/80 text-zinc-400'
+                                      ? 'bg-purple-900 text-purple-100 border border-purple-400 font-bold'
+                                      : 'bg-zinc-800/90 border border-zinc-700/80 text-zinc-300'
                                   }`}
                                 >
                                   #{tagName}
@@ -552,18 +543,18 @@ export default function HomePage() {
                               );
                             })}
                             {doc.document_tags.length > 3 && (
-                              <span className="text-[9px] font-mono text-zinc-500 self-center">
+                              <span className="text-xs font-medium text-zinc-400 self-center">
                                 +{doc.document_tags.length - 3}
                               </span>
                             )}
                           </div>
                         )}
 
-                        {/* Rodapé do card: tamanho e indicador */}
-                        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 pt-1.5 border-t border-zinc-800/60">
+                        {/* Rodapé do card: tamanho e status */}
+                        <div className="flex items-center justify-between text-xs font-medium text-zinc-400 pt-2 border-t border-zinc-800">
                           <span>{formatFileSize(doc.file_size)}</span>
-                          <span className={`text-[10px] ${isSelected ? 'text-purple-400 font-medium' : 'text-zinc-600'}`}>
-                            {isSelected ? 'Em foco' : 'Selecionar'}
+                          <span className={`text-xs font-semibold ${isSelected ? 'text-purple-300' : 'text-zinc-500'}`}>
+                            {isSelected ? 'Selecionado' : 'Abrir'}
                           </span>
                         </div>
                       </div>
@@ -579,15 +570,15 @@ export default function HomePage() {
             COLUNA 2: ESTRUTURA E RESUMO (CENTRO - 5 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-5 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
+          className={`col-span-12 xl:col-span-5 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
             activeTab === 'doc' ? 'flex' : 'hidden xl:flex'
           }`}
         >
           {/* Header da Coluna 2 */}
-          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full" />
-              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+              <span className="w-2 h-4 bg-indigo-500 rounded-full" />
+              <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 02. Análise & Síntese
               </span>
             </div>
@@ -597,27 +588,25 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => setShowPdfPreview(!showPdfPreview)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all ${
                     showPdfPreview
                       ? 'bg-purple-600 text-white'
-                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200'
                   }`}
                   title="Alternar pré-visualização do PDF"
                 >
-                  {showPdfPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">
-                    {showPdfPreview ? 'Ocultar PDF' : 'Ver PDF'}
-                  </span>
+                  {showPdfPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  <span>{showPdfPreview ? 'Ocultar PDF' : 'Ver PDF'}</span>
                 </button>
 
                 <a
                   href={selectedDoc.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all"
+                  className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all"
                   title="Abrir arquivo PDF original em nova aba"
                 >
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-4 h-4" />
                   <span className="hidden sm:inline">Abrir</span>
                 </a>
 
@@ -625,10 +614,10 @@ export default function HomePage() {
                   type="button"
                   onClick={() => handleDeleteDocument(selectedDoc)}
                   disabled={deletingId === selectedDoc.id}
-                  className="p-1.5 bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-all"
+                  className="p-1.5 bg-zinc-800 hover:bg-red-500/20 text-zinc-300 hover:text-red-400 rounded-lg transition-all"
                   title="Excluir documento"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             )}
@@ -637,10 +626,10 @@ export default function HomePage() {
           <div className="p-3.5 sm:p-4 flex flex-col gap-3.5 flex-1 overflow-y-auto min-h-[450px] xl:min-h-0">
             {selectedDoc ? (
               <>
-                {/* Visualizador de PDF Opcional Embutido */}
+                {/* Visualizador de PDF Opcional */}
                 {showPdfPreview && (
-                  <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950 h-72 shrink-0 flex flex-col">
-                    <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 flex items-center justify-between">
+                  <div className="border border-zinc-700 rounded-xl overflow-hidden bg-zinc-950 h-72 shrink-0 flex flex-col">
+                    <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-xs font-medium text-zinc-300 flex items-center justify-between">
                       <span>Visualizador Embutido</span>
                       <a
                         href={selectedDoc.file_url}
@@ -648,7 +637,7 @@ export default function HomePage() {
                         rel="noreferrer"
                         className="text-purple-400 hover:underline flex items-center gap-1"
                       >
-                        Tela cheia <ArrowRight className="w-3 h-3" />
+                        Tela cheia <ArrowRight className="w-3.5 h-3.5" />
                       </a>
                     </div>
                     <iframe
@@ -660,27 +649,27 @@ export default function HomePage() {
                 )}
 
                 {/* Card de Título e Metadados Principais */}
-                <div className="p-4 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-950 border border-zinc-800/90 shadow-sm">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase">
+                <div className="p-4 sm:p-5 rounded-xl bg-zinc-950 border border-zinc-800 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30 uppercase tracking-wide">
                       {selectedDoc.folders?.name || 'Geral'}
                     </span>
-                    <span className="text-zinc-600 text-xs">•</span>
-                    <span className="text-[11px] font-mono text-zinc-400">
+                    <span className="text-zinc-500 text-sm">•</span>
+                    <span className="text-xs font-semibold text-zinc-300 font-mono">
                       {formatFileSize(selectedDoc.file_size)}
                     </span>
                   </div>
 
-                  <h2 className="text-base sm:text-lg font-bold text-zinc-100 leading-snug break-words">
+                  <h2 className="text-base sm:text-lg font-bold text-white leading-snug break-words">
                     {selectedDoc.title}
                   </h2>
 
                   {activeTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-zinc-800/60">
+                    <div className="flex flex-wrap gap-2 mt-3.5 pt-3.5 border-t border-zinc-800">
                       {activeTags.map((tag, i) => (
                         <span
                           key={i}
-                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400"
+                          className="text-xs font-medium px-2.5 py-1 rounded-md bg-zinc-800 text-zinc-200 border border-zinc-700"
                         >
                           #{tag}
                         </span>
@@ -689,24 +678,24 @@ export default function HomePage() {
                   )}
                 </div>
 
-                {/* Grade de Estatísticas e Metadados */}
+                {/* Grade de Estatísticas e Metadados com Letras Claras */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
-                    <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] mb-1 font-mono">
-                      <Folder className="w-3.5 h-3.5 text-purple-400" />
+                  <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1">
+                      <Folder className="w-4 h-4 text-purple-400" />
                       <span>CATEGORIA</span>
                     </div>
-                    <span className="text-xs font-semibold text-zinc-200 uppercase truncate block">
+                    <span className="text-sm font-bold text-purple-200 uppercase truncate block">
                       {selectedDoc.folders?.name || 'Geral'}
                     </span>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
-                    <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] mb-1 font-mono">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                  <div className="p-3.5 rounded-xl bg-zinc-950 border border-zinc-800">
+                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-semibold mb-1">
+                      <Calendar className="w-4 h-4 text-indigo-400" />
                       <span>INDEXAÇÃO</span>
                     </div>
-                    <span className="text-xs font-mono font-medium text-zinc-200 block">
+                    <span className="text-sm font-semibold text-zinc-200 block">
                       {new Date(selectedDoc.created_at).toLocaleDateString('pt-BR', {
                         day: '2-digit',
                         month: 'short',
@@ -716,45 +705,45 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {/* Card de Síntese Inteligente (IA) */}
-                <div className="flex-1 flex flex-col rounded-xl bg-zinc-950/80 border border-zinc-800/90 overflow-hidden shadow-sm">
-                  <div className="px-4 py-2.5 bg-zinc-900/60 border-b border-zinc-800/80 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
-                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                {/* Card de Síntese com Alta Legibilidade */}
+                <div className="flex-1 flex flex-col rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
+                      <Sparkles className="w-4 h-4 text-purple-400" />
                       <span>Síntese Executiva Gerada por IA</span>
                     </div>
                     <button
                       type="button"
                       onClick={handleCopySummary}
-                      className="text-xs font-medium text-zinc-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-zinc-800"
+                      className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-zinc-800"
                       title="Copiar resumo"
                     >
                       {copiedSummary ? (
                         <>
-                          <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="text-emerald-400 text-[11px]">Copiado!</span>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span className="text-emerald-400">Copiado!</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span className="text-[11px]">Copiar</span>
+                          <Copy className="w-4 h-4" />
+                          <span>Copiar</span>
                         </>
                       )}
                     </button>
                   </div>
 
-                  <div className="p-4 flex-1 overflow-y-auto">
-                    <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-sans">
+                  <div className="p-4 sm:p-5 flex-1 overflow-y-auto">
+                    <p className="text-sm sm:text-base text-zinc-100 leading-relaxed whitespace-pre-wrap font-sans font-normal selection:bg-purple-500/40">
                       {selectedDoc.ai_summary}
                     </p>
                   </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500 border border-dashed border-zinc-800/80 rounded-xl">
-                <FileText className="w-8 h-8 text-zinc-600 mb-2" />
-                <p className="text-xs font-medium text-zinc-400">Nenhum documento selecionado</p>
-                <p className="text-[11px] text-zinc-600 mt-1">
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-400 border border-dashed border-zinc-800 rounded-xl">
+                <FileText className="w-10 h-10 text-zinc-500 mb-2.5" />
+                <p className="text-sm font-bold text-zinc-200">Nenhum documento selecionado</p>
+                <p className="text-xs text-zinc-400 mt-1 max-w-xs">
                   Selecione um arquivo da lista ao lado para inspecionar seu resumo e metadados.
                 </p>
               </div>
@@ -766,15 +755,15 @@ export default function HomePage() {
             COLUNA 3: TERMINAL DE ESTUDO (DIREITA - 4 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-4 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
+          className={`col-span-12 xl:col-span-4 flex-col h-full overflow-hidden bg-zinc-900/60 border border-zinc-800 rounded-2xl shadow-sm ${
             activeTab === 'chat' ? 'flex' : 'hidden xl:flex'
           }`}
         >
           {/* Header da Coluna 3 */}
-          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between shrink-0 bg-zinc-950/60">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-3.5 bg-purple-500 rounded-full" />
-              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+              <span className="w-2 h-4 bg-purple-500 rounded-full" />
+              <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
                 03. Tutor de Estudos IA
               </span>
             </div>
@@ -782,12 +771,11 @@ export default function HomePage() {
 
           <div className="p-3.5 sm:p-4 flex flex-col gap-3 flex-1 overflow-hidden min-h-[520px] xl:min-h-0">
             
-            {/* Seletor Moderno de Modo de Estudo (3 Modos) */}
+            {/* Seletor de Modo de Estudo com Letras Nítidas */}
             <div className="grid grid-cols-3 gap-2 shrink-0">
               {(['socratico', 'explicativo', 'quiz'] as const).map((mode) => {
                 const active = studyMode === mode;
                 const info = STUDY_MODES_CONFIG[mode];
-                const ModeIcon = info.icon;
 
                 return (
                   <button
@@ -796,18 +784,16 @@ export default function HomePage() {
                     onClick={() => setStudyMode(mode)}
                     className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       active
-                        ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/30'
-                        : 'bg-zinc-950/60 border-zinc-800/90 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/70 hover:text-zinc-200'
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40'
+                        : 'bg-zinc-950 border-zinc-700/80 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900 hover:text-white'
                     }`}
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <span className="text-[11px] font-bold tracking-tight">
-                        {info.title}
-                      </span>
-                    </div>
+                    <span className="text-xs sm:text-sm font-bold tracking-tight block mb-1">
+                      {info.title}
+                    </span>
                     <span
-                      className={`text-[9px] uppercase font-mono tracking-wider truncate ${
-                        active ? 'text-purple-100 font-medium' : 'text-zinc-500'
+                      className={`text-xs font-semibold truncate ${
+                        active ? 'text-purple-100' : 'text-zinc-400'
                       }`}
                     >
                       {info.role}
@@ -817,27 +803,27 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Descrição Didática do Modo Ativo */}
-            <div className="px-3 py-2 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-start gap-2 shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />
-              <p className="text-[11px] text-zinc-300 leading-snug">
-                <span className="font-semibold text-purple-300">
+            {/* Descrição Didática Legível */}
+            <div className="px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2.5 shrink-0">
+              <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
+              <p className="text-xs sm:text-sm text-zinc-200 leading-snug">
+                <span className="font-bold text-purple-300">
                   {STUDY_MODES_CONFIG[studyMode].title}:
                 </span>{' '}
                 {STUDY_MODES_CONFIG[studyMode].description}
               </p>
             </div>
 
-            {/* Lista de Mensagens do Chat */}
-            <div className="flex-1 bg-zinc-950/80 border border-zinc-800/90 rounded-xl p-3 overflow-y-auto space-y-3 min-h-[220px]">
+            {/* Mensagens do Chat com Alta Legibilidade */}
+            <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl p-3.5 overflow-y-auto space-y-3 min-h-[220px]">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-500">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-2">
-                    <MessageSquare className="w-5 h-5" />
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-400">
+                  <div className="w-12 h-12 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-2.5">
+                    <MessageSquare className="w-6 h-6" />
                   </div>
-                  <p className="text-xs font-medium text-zinc-300">Workspace de Estudo Vazio</p>
-                  <p className="text-[11px] text-zinc-500 mt-1 max-w-[260px]">
-                    Envie uma dúvida sobre o PDF ou escolha uma das perguntas sugeridas abaixo.
+                  <p className="text-sm font-bold text-zinc-200">Workspace de Estudo Pronto</p>
+                  <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-[280px]">
+                    Envie uma dúvida sobre o PDF ou clique em uma das sugestões abaixo para iniciar.
                   </p>
                 </div>
               ) : (
@@ -849,21 +835,21 @@ export default function HomePage() {
                       className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                     >
                       {!isUser && (
-                        <div className="w-6 h-6 rounded-md bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
-                          <Bot className="w-3.5 h-3.5" />
+                        <div className="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                          <Bot className="w-4 h-4" />
                         </div>
                       )}
 
                       <div
-                        className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed whitespace-pre-wrap ${
+                        className={`max-w-[85%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
                           isUser
-                            ? 'bg-purple-600 text-white rounded-tr-xs shadow-sm shadow-purple-950/40'
-                            : 'bg-zinc-900 border border-zinc-800/90 text-zinc-200 rounded-tl-xs shadow-sm'
+                            ? 'bg-purple-600 text-white rounded-tr-xs shadow-md shadow-purple-950/50'
+                            : 'bg-zinc-900 border border-zinc-700/80 text-zinc-100 rounded-tl-xs shadow-sm'
                         }`}
                       >
                         <div
-                          className={`text-[9px] font-mono uppercase mb-1 ${
-                            isUser ? 'text-purple-200' : 'text-purple-400 font-semibold'
+                          className={`text-xs font-bold uppercase mb-1.5 ${
+                            isUser ? 'text-purple-100' : 'text-purple-300'
                           }`}
                         >
                           {isUser ? 'Você' : `Tutor IA // ${STUDY_MODES_CONFIG[studyMode].title}`}
@@ -872,8 +858,8 @@ export default function HomePage() {
                       </div>
 
                       {isUser && (
-                        <div className="w-6 h-6 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0 mt-0.5">
-                          <User className="w-3.5 h-3.5" />
+                        <div className="w-7 h-7 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-200 shrink-0 mt-0.5">
+                          <User className="w-4 h-4" />
                         </div>
                       )}
                     </div>
@@ -883,10 +869,10 @@ export default function HomePage() {
 
               {loadingChat && (
                 <div className="flex gap-2.5 items-start">
-                  <div className="w-6 h-6 rounded-md bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
-                    <Bot className="w-3.5 h-3.5 animate-pulse" />
+                  <div className="w-7 h-7 rounded-lg bg-purple-600/30 border border-purple-500/40 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                    <Bot className="w-4 h-4 animate-pulse" />
                   </div>
-                  <div className="bg-zinc-900 border border-zinc-800/90 text-purple-300 rounded-2xl rounded-tl-xs p-3 text-xs flex items-center gap-2">
+                  <div className="bg-zinc-900 border border-zinc-700/80 text-purple-200 rounded-2xl rounded-tl-xs p-3.5 text-xs sm:text-sm flex items-center gap-2 font-medium">
                     <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
                     <span>Gemini analisando contexto e formulando resposta...</span>
                   </div>
@@ -895,11 +881,11 @@ export default function HomePage() {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Perguntas Sugeridas / Ações Rápidas */}
+            {/* Sugestões de Perguntas Rápidas */}
             <div className="space-y-1.5 shrink-0">
-              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
-                <span>SUGESTÕES PARA O MODO ATIVO</span>
-              </div>
+              <span className="text-xs font-semibold text-zinc-400 px-1 block">
+                SUGESTÕES PARA O MODO ATIVO:
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {QUICK_PROMPTS[studyMode].map((prompt, pIdx) => (
                   <button
@@ -909,7 +895,7 @@ export default function HomePage() {
                       setInputMsg(prompt);
                       inputRef.current?.focus();
                     }}
-                    className="text-[10px] text-zinc-300 hover:text-purple-200 bg-zinc-950/70 hover:bg-zinc-900 border border-zinc-800/90 hover:border-purple-500/50 rounded-lg px-2.5 py-1 transition-all text-left truncate max-w-full"
+                    className="text-xs font-medium text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-1.5 transition-all text-left truncate max-w-full"
                   >
                     💡 {prompt}
                   </button>
@@ -917,9 +903,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Formulário de Envio com Design Moderno */}
+            {/* Formulário de Envio com Letras Confortáveis */}
             <form onSubmit={(e) => handleSendMessage(e)} className="shrink-0">
-              <div className="relative flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1 focus-within:border-purple-500/80 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
+              <div className="relative flex items-center bg-zinc-950 border border-zinc-700 rounded-xl p-1.5 focus-within:border-purple-500 focus-within:ring-1 focus-within:ring-purple-500/40 transition-all">
                 <input
                   ref={inputRef}
                   type="text"
@@ -931,15 +917,15 @@ export default function HomePage() {
                       ? 'Faça uma pergunta sobre o documento...'
                       : 'Selecione um PDF antes de interagir...'
                   }
-                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 px-3 py-2 focus:outline-none"
+                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-400 px-3 py-2 focus:outline-none font-medium"
                 />
                 <button
                   type="submit"
                   disabled={!selectedDoc || loadingChat || !inputMsg.trim()}
-                  className="p-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/40"
+                  className="p-2.5 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/40 font-semibold"
                   title="Enviar mensagem"
                 >
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-4 h-4" />
                 </button>
               </div>
             </form>
