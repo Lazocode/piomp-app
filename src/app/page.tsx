@@ -1,7 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import {
+  Search,
+  X,
+  FileText,
+  UploadCloud,
+  Trash2,
+  ExternalLink,
+  Copy,
+  Check,
+  Brain,
+  BookOpen,
+  HelpCircle,
+  Send,
+  Sparkles,
+  Folder,
+  Calendar,
+  Eye,
+  EyeOff,
+  MessageSquare,
+  Bot,
+  User,
+  Layers,
+  ArrowRight,
+} from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 interface TagRelation {
@@ -29,27 +52,58 @@ type ActiveTab = 'files' | 'doc' | 'chat';
 
 const STUDY_MODES_CONFIG: Record<
   StudyMode,
-  { title: string; role: string; description: string }
+  { title: string; role: string; description: string; icon: typeof Brain; badgeColor: string }
 > = {
   socratico: {
-    title: 'SOCRÁTICO',
-    role: 'TECH LEAD // TUTOR',
+    title: 'Socrático',
+    role: 'Tech Lead / Tutor',
     description:
-      'Não entrega a resposta pronta. Avalia o seu raciocínio, aponta pontos cegos e devolve perguntas para estimular sua lógica.',
+      'Estimula seu raciocínio crítico apontando pontos cegos e devolvendo perguntas reflexivas.',
+    icon: Brain,
+    badgeColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
   },
   explicativo: {
-    title: 'EXPLICATIVO',
-    role: 'PROFESSOR SÊNIOR',
+    title: 'Explicativo',
+    role: 'Professor Sênior',
     description:
-      'Didático e direto ao ponto. Traduz conceitos complexos do PDF com exemplos práticos de código e aplicação de mercado.',
+      'Didático e direto. Traduz conceitos complexos com analogias claras e exemplos de mercado.',
+    icon: BookOpen,
+    badgeColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
   },
   quiz: {
-    title: 'QUIZ',
-    role: 'EXAMINADOR TÉCNICO',
+    title: 'Quiz Técnico',
+    role: 'Examinador Sênior',
     description:
-      'Simula provas e entrevistas. Elabora questões de múltipla escolha ou arquitetura sobre o PDF e avalia suas respostas.',
+      'Simula provas e entrevistas elaborando questões arquiteturais e avaliando suas respostas.',
+    icon: HelpCircle,
+    badgeColor: 'text-purple-400 bg-purple-500/10 border-purple-500/30',
   },
 };
+
+const QUICK_PROMPTS: Record<StudyMode, string[]> = {
+  socratico: [
+    'Quais as premissas centrais deste documento?',
+    'Aponte um trade-off crítico do padrão apresentado.',
+    'Como você desafiaria meu entendimento deste tema?',
+  ],
+  explicativo: [
+    'Explique os conceitos centrais com um exemplo prático.',
+    'Quais são os principais erros cometidos ao aplicar isso?',
+    'Resuma os 3 pontos mais relevantes para o mercado.',
+  ],
+  quiz: [
+    'Gere 1 questão técnica desafiadora sobre o PDF.',
+    'Proponha um cenário de decisão arquitetural para eu resolver.',
+    'Simule uma pergunta típica de entrevista sobre este tema.',
+  ],
+};
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function HomePage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -65,17 +119,25 @@ export default function HomePage() {
   // Aba ativa para ecrãs menores (< xl)
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedSummary, setCopiedSummary] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
 
-  const filteredDocuments = documents.filter((doc) => {
-    if (!searchQuery.trim()) return true;
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Filtro de documentos em tempo real
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery.trim()) return documents;
     const term = searchQuery.toLowerCase().trim();
-    const matchesTitle = doc.title.toLowerCase().includes(term);
-    const matchesFolder = doc.folders?.name?.toLowerCase().includes(term);
-    const matchesTags = doc.document_tags?.some((dt) =>
-      dt.tags?.name?.toLowerCase().includes(term)
-    );
-    return Boolean(matchesTitle || matchesFolder || matchesTags);
-  });
+    return documents.filter((doc) => {
+      const matchesTitle = doc.title.toLowerCase().includes(term);
+      const matchesFolder = doc.folders?.name?.toLowerCase().includes(term);
+      const matchesTags = doc.document_tags?.some((dt) =>
+        dt.tags?.name?.toLowerCase().includes(term)
+      );
+      return Boolean(matchesTitle || matchesFolder || matchesTags);
+    });
+  }, [documents, searchQuery]);
 
   async function refreshDocuments() {
     const { data } = await supabase
@@ -118,6 +180,13 @@ export default function HomePage() {
     loadHistory();
   }, [selectedDoc]);
 
+  // Scroll automático para a última mensagem
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loadingChat]);
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -143,6 +212,7 @@ export default function HomePage() {
       alert(msg);
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   }
 
@@ -186,13 +256,13 @@ export default function HomePage() {
     }
   }
 
-  async function handleSendMessage(e: React.FormEvent) {
-    e.preventDefault();
-    if (!inputMsg.trim() || !selectedDoc || loadingChat) return;
+  async function handleSendMessage(e?: React.FormEvent, customMsg?: string) {
+    if (e) e.preventDefault();
+    const textToSend = customMsg || inputMsg;
+    if (!textToSend.trim() || !selectedDoc || loadingChat) return;
 
-    const userText = inputMsg;
     setInputMsg('');
-    setMessages((prev) => [...prev, { role: 'user', content: userText }]);
+    setMessages((prev) => [...prev, { role: 'user', content: textToSend }]);
     setLoadingChat(true);
 
     try {
@@ -201,7 +271,7 @@ export default function HomePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           document_id: selectedDoc.id,
-          message: userText,
+          message: textToSend,
           study_mode: studyMode,
         }),
       });
@@ -218,96 +288,151 @@ export default function HomePage() {
     }
   }
 
+  function handleCopySummary() {
+    if (!selectedDoc?.ai_summary) return;
+    navigator.clipboard.writeText(selectedDoc.ai_summary);
+    setCopiedSummary(true);
+    setTimeout(() => setCopiedSummary(false), 2000);
+  }
+
   const activeTags =
     selectedDoc?.document_tags?.map((t) => t.tags?.name).filter(Boolean) || [];
 
+  const CurrentModeIcon = STUDY_MODES_CONFIG[studyMode].icon;
+
   return (
-    <div className="min-h-screen xl:h-screen w-screen bg-[#0a0a0a] text-neutral-200 p-2 sm:p-4 overflow-x-hidden xl:overflow-hidden font-sans flex flex-col">
+    <div className="min-h-screen xl:h-screen w-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden xl:overflow-hidden">
       
-      {/* NAVEGAÇÃO DE ABAS EXCLUSIVA PARA ECRÃS MENORES (< XL) */}
-      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-[#111111] border border-neutral-800 p-1 mb-3 shrink-0">
+      {/* =========================================================
+          BARRA SUPERIOR (HEADER MODERNO)
+      ========================================================= */}
+      <header className="h-14 border-b border-zinc-800/80 bg-zinc-950/70 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between shrink-0 z-20">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm tracking-tight text-zinc-100">
+              PoimpStudy
+            </span>
+          </div>
+        </div>
+
+        {/* Contador e Ação Rápida */}
+        <div className="flex items-center gap-3">
+          <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs font-medium transition-all shadow-sm shadow-purple-900/40">
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Adicionar PDF</span>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+        </div>
+      </header>
+
+      {/* =========================================================
+          NAVEGAÇÃO DE ABAS MÓVEL (< XL)
+      ========================================================= */}
+      <nav className="xl:hidden grid grid-cols-3 gap-1 bg-zinc-950/90 border-b border-zinc-800/80 p-1.5 shrink-0">
         <button
           type="button"
           onClick={() => setActiveTab('files')}
-          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'files'
-              ? 'bg-purple-600 text-white'
-              : 'text-neutral-400 hover:text-white'
+              ? 'bg-purple-600/90 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
           }`}
         >
-          01 // ARQUIVOS ({documents.length})
+          <Folder className="w-3.5 h-3.5" />
+          <span>Arquivos ({filteredDocuments.length})</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('doc')}
-          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'doc'
-              ? 'bg-purple-600 text-white'
-              : 'text-neutral-400 hover:text-white'
+              ? 'bg-purple-600/90 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
           }`}
         >
-          02 // RESUMO
+          <FileText className="w-3.5 h-3.5" />
+          <span>Resumo</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('chat')}
-          className={`py-2 text-[11px] font-mono uppercase font-bold transition-colors ${
+          className={`py-2 px-3 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'chat'
-              ? 'bg-purple-600 text-white'
-              : 'text-neutral-400 hover:text-white'
+              ? 'bg-purple-600/90 text-white shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60'
           }`}
         >
-          03 // ESTUDO
+          <Brain className="w-3.5 h-3.5" />
+          <span>Estudo</span>
         </button>
       </nav>
 
-      {/* DISPOSIÇÃO: EMPILHADA EM TELAS MENORES / GRELHA 12 COLUNAS EM TELAS GRANDES */}
-      <div className="flex-1 flex flex-col xl:grid xl:grid-cols-12 gap-4 max-w-[1800px] w-full mx-auto overflow-hidden">
+      {/* =========================================================
+          DISPOSIÇÃO PRINCIPAL: 3 COLUNAS (LAYOUT DO TEMPLATE PRESERVADO)
+      ========================================================= */}
+      <div className="flex-1 p-3 sm:p-4 overflow-hidden flex flex-col xl:grid xl:grid-cols-12 gap-3.5 max-w-[1920px] w-full mx-auto">
         
         {/* =========================================================
-            COLUNA 1 (ESQUERDA): ARQUIVOS
+            COLUNA 1: ARQUIVOS (ESQUERDA - 3 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-3 flex flex-col gap-3 h-full overflow-hidden ${
+          className={`col-span-12 xl:col-span-3 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
             activeTab === 'files' ? 'flex' : 'hidden xl:flex'
           }`}
         >
-          <div className="h-9 bg-purple-600 text-white font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
-            <span>01 // ARQUIVOS</span>
-            <span>[{filteredDocuments.length}{searchQuery ? `/${documents.length}` : ''}]</span>
+          {/* Header da Coluna 1 */}
+          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-3.5 bg-purple-500 rounded-full" />
+              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+                01. Repositório
+              </span>
+            </div>
+            <span className="text-[11px] font-mono font-medium px-2 py-0.5 rounded-md bg-zinc-800 text-zinc-300">
+              {filteredDocuments.length}
+              {searchQuery ? ` / ${documents.length}` : ''}
+            </span>
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-3 overflow-hidden min-h-[400px] xl:min-h-0">
-            {/* CAMPO DE BUSCA (FILTRO POR TÍTULO OU TAGS) */}
+          <div className="p-3 sm:p-3.5 flex flex-col gap-3 flex-1 overflow-hidden min-h-[400px] xl:min-h-0">
+            {/* Campo de Busca Moderno */}
             <div className="relative flex items-center shrink-0">
-              <Search className="w-3.5 h-3.5 absolute left-3 text-neutral-500 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 absolute left-3 text-zinc-500 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="BUSCAR POR TÍTULO OU TAG..."
-                className="w-full bg-[#181818] border border-neutral-800 text-xs font-mono text-neutral-200 pl-8.5 pr-8 py-2 placeholder:text-neutral-500 focus:outline-none focus:border-purple-500 transition-colors uppercase"
+                placeholder="Buscar por título ou tag..."
+                className="w-full bg-zinc-950/70 border border-zinc-800 rounded-xl text-xs text-zinc-200 pl-8.5 pr-8 py-2 placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
                   title="Limpar busca"
-                  className="absolute right-2.5 p-1 text-neutral-500 hover:text-white transition-colors"
+                  className="absolute right-2.5 p-0.5 text-zinc-500 hover:text-zinc-200 transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
+            {/* Botão de Upload com Destaque */}
             <label
-              className={`w-full py-2.5 px-3 border text-xs font-mono uppercase tracking-wider text-center cursor-pointer transition-colors shrink-0 ${
+              className={`w-full py-2 px-3 border border-dashed rounded-xl text-xs font-medium text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
                 uploading
-                  ? 'bg-neutral-900 border-purple-500 text-purple-400'
-                  : 'bg-[#181818] border-neutral-700 text-neutral-200 hover:border-purple-500 hover:text-purple-400'
+                  ? 'bg-purple-950/30 border-purple-500 text-purple-300 animate-pulse'
+                  : 'bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-purple-500/80 hover:bg-zinc-900 hover:text-purple-300'
               }`}
             >
-              {uploading ? 'PROCESSANDO PDF...' : '+ ADICIONAR DOCUMENTO'}
+              <UploadCloud className="w-4 h-4 text-purple-400" />
+              <span>{uploading ? 'Processando e analisando...' : 'Fazer Upload de Novo PDF'}</span>
               <input
                 type="file"
                 accept="application/pdf"
@@ -317,45 +442,46 @@ export default function HomePage() {
               />
             </label>
 
+            {/* Grid de Documentos */}
             <div className="flex-1 overflow-y-auto pr-1">
               {filteredDocuments.length === 0 ? (
-                <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-neutral-800">
-                  <Search className="w-5 h-5 text-neutral-600 mb-2" />
-                  <p className="font-mono text-xs text-neutral-400 mb-1">
-                    NENHUM DOCUMENTO ENCONTRADO
+                <div className="h-full min-h-[180px] flex flex-col items-center justify-center text-center p-4 border border-dashed border-zinc-800/80 rounded-xl bg-zinc-950/20">
+                  <FileText className="w-7 h-7 text-zinc-600 mb-2" />
+                  <p className="text-xs font-medium text-zinc-300 mb-1">
+                    Nenhum documento encontrado
                   </p>
                   {searchQuery ? (
                     <>
-                      <p className="font-mono text-[10px] text-neutral-500 max-w-[200px] truncate mb-3">
-                        Filtro: &quot;{searchQuery}&quot;
+                      <p className="text-[11px] text-zinc-500 max-w-[200px] truncate mb-3">
+                        Termo: &quot;{searchQuery}&quot;
                       </p>
                       <button
                         type="button"
                         onClick={() => setSearchQuery('')}
-                        className="px-2.5 py-1 bg-neutral-900 border border-neutral-700 hover:border-purple-500 text-neutral-300 hover:text-purple-300 font-mono text-[10px] uppercase transition-colors"
+                        className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-medium transition-colors"
                       >
-                        LIMPAR BUSCA
+                        Limpar filtro
                       </button>
                     </>
                   ) : (
-                    <p className="font-mono text-[10px] text-neutral-600">
-                      Adicione um arquivo PDF acima para começar.
+                    <p className="text-[11px] text-zinc-500">
+                      Adicione um arquivo PDF acima para começar seus estudos.
                     </p>
                   )}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5">
                   {filteredDocuments.map((doc, idx) => {
                     const isSelected = selectedDoc?.id === doc.id;
                     const isDeleting = deletingId === doc.id;
-                    const folder = doc.folders?.name || 'GERAL';
+                    const folder = doc.folders?.name || 'Geral';
 
                     return (
                       <div
                         key={doc.id}
                         onClick={() => {
                           setSelectedDoc(doc);
-                          setActiveTab('doc'); // Transita para visualização em ecrãs móveis
+                          setActiveTab('doc');
                         }}
                         role="button"
                         tabIndex={0}
@@ -365,69 +491,80 @@ export default function HomePage() {
                             setActiveTab('doc');
                           }
                         }}
-                        className={`min-h-[130px] p-2.5 sm:p-3 text-left flex flex-col justify-between border transition-colors cursor-pointer relative ${
+                        className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer relative group ${
                           isSelected
-                            ? 'bg-purple-600/15 border-purple-500 text-white'
-                            : 'bg-[#181818] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
+                            ? 'bg-purple-950/25 border-purple-500/70 shadow-sm shadow-purple-900/20 ring-1 ring-purple-500/30 text-white'
+                            : 'bg-zinc-950/60 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-900/60 text-zinc-300'
                         } ${isDeleting ? 'opacity-40 pointer-events-none' : ''}`}
                       >
-                        <div className="w-full flex items-center justify-between font-mono text-[10px] gap-1">
-                          <span className={isSelected ? 'text-purple-400 font-bold' : 'text-neutral-500'}>
-                            #{String(idx + 1).padStart(2, '0')}
-                          </span>
+                        {/* Linha superior do card */}
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span
+                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                isSelected
+                                  ? 'bg-purple-500/20 text-purple-300'
+                                  : 'bg-zinc-800 text-zinc-400'
+                              }`}
+                            >
+                              #{String(idx + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-[10px] font-medium uppercase tracking-wider text-purple-400/90 truncate">
+                              {folder}
+                            </span>
+                          </div>
+
                           <button
                             type="button"
-                            title="Remover PDF"
+                            title="Remover documento"
                             onClick={(e) => handleDeleteDocument(doc, e)}
-                            className="px-1.5 py-0.5 bg-neutral-900 border border-neutral-700 text-neutral-400 hover:border-red-500 hover:text-red-400 font-mono text-[9px] uppercase transition-colors"
+                            className="p-1 rounded-md opacity-60 hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 text-zinc-400 transition-all"
                           >
-                            X
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         </div>
 
-                        <div className="my-1.5">
-                          <span className="inline-block truncate max-w-full uppercase font-mono text-[9px] px-1 mb-1 bg-neutral-900 border border-neutral-800 text-purple-400">
-                            {folder}
-                          </span>
-                          <p className="text-xs font-medium line-clamp-2 leading-snug break-words">
-                            {doc.title}
-                          </p>
-                          {doc.document_tags && doc.document_tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {doc.document_tags.slice(0, 2).map((t, tIdx) => {
-                                const tagName = t.tags?.name;
-                                if (!tagName) return null;
-                                const isTagMatch =
-                                  searchQuery &&
-                                  tagName.toLowerCase().includes(searchQuery.toLowerCase().trim());
-                                return (
-                                  <span
-                                    key={tIdx}
-                                    className={`text-[8px] font-mono px-1 py-0.5 border truncate max-w-[85px] uppercase ${
-                                      isTagMatch
-                                        ? 'bg-purple-950 border-purple-400 text-purple-200 font-bold'
-                                        : 'bg-neutral-900 border-neutral-800 text-neutral-400'
-                                    }`}
-                                  >
-                                    #{tagName}
-                                  </span>
-                                );
-                              })}
-                              {doc.document_tags.length > 2 && (
-                                <span className="text-[8px] font-mono text-neutral-500 self-center">
-                                  +{doc.document_tags.length - 2}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        {/* Título do PDF */}
+                        <p className="text-xs font-semibold line-clamp-2 leading-snug mb-2 group-hover:text-purple-200 transition-colors">
+                          {doc.title}
+                        </p>
 
-                        <div className="w-full h-1 bg-neutral-800 overflow-hidden">
-                          <div
-                            className={`h-full ${
-                              isSelected ? 'w-full bg-purple-500' : 'w-1/3 bg-neutral-700'
-                            }`}
-                          />
+                        {/* Tags Técnicas com Destaque */}
+                        {doc.document_tags && doc.document_tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {doc.document_tags.slice(0, 3).map((t, tIdx) => {
+                              const tagName = t.tags?.name;
+                              if (!tagName) return null;
+                              const isTagMatch =
+                                searchQuery &&
+                                tagName.toLowerCase().includes(searchQuery.toLowerCase().trim());
+                              return (
+                                <span
+                                  key={tIdx}
+                                  className={`text-[9px] font-mono px-1.5 py-0.5 rounded truncate max-w-[100px] ${
+                                    isTagMatch
+                                      ? 'bg-purple-900/80 text-purple-200 border border-purple-500/50 font-bold'
+                                      : 'bg-zinc-900 border border-zinc-800/80 text-zinc-400'
+                                  }`}
+                                >
+                                  #{tagName}
+                                </span>
+                              );
+                            })}
+                            {doc.document_tags.length > 3 && (
+                              <span className="text-[9px] font-mono text-zinc-500 self-center">
+                                +{doc.document_tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Rodapé do card: tamanho e indicador */}
+                        <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 pt-1.5 border-t border-zinc-800/60">
+                          <span>{formatFileSize(doc.file_size)}</span>
+                          <span className={`text-[10px] ${isSelected ? 'text-purple-400 font-medium' : 'text-zinc-600'}`}>
+                            {isSelected ? 'Em foco' : 'Selecionar'}
+                          </span>
                         </div>
                       </div>
                     );
@@ -439,183 +576,238 @@ export default function HomePage() {
         </section>
 
         {/* =========================================================
-            COLUNA 2 (CENTRO): RESUMO E METADADOS
+            COLUNA 2: ESTRUTURA E RESUMO (CENTRO - 5 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-5 flex flex-col gap-3 h-full overflow-hidden ${
+          className={`col-span-12 xl:col-span-5 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
             activeTab === 'doc' ? 'flex' : 'hidden xl:flex'
           }`}
         >
-          <div className="h-9 bg-neutral-800 border-l-4 border-purple-500 text-neutral-200 font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
-            <span>02 // ESTRUTURA E RESUMO</span>
+          {/* Header da Coluna 2 */}
+          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full" />
+              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+                02. Análise & Síntese
+              </span>
+            </div>
+
             {selectedDoc && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPdfPreview(!showPdfPreview)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                    showPdfPreview
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300'
+                  }`}
+                  title="Alternar pré-visualização do PDF"
+                >
+                  {showPdfPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">
+                    {showPdfPreview ? 'Ocultar PDF' : 'Ver PDF'}
+                  </span>
+                </button>
+
                 <a
                   href={selectedDoc.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[11px] text-purple-400 hover:underline"
+                  className="px-2.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all"
+                  title="Abrir arquivo PDF original em nova aba"
                 >
-                  [ORIGINAL]
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Abrir</span>
                 </a>
+
                 <button
                   type="button"
                   onClick={() => handleDeleteDocument(selectedDoc)}
                   disabled={deletingId === selectedDoc.id}
-                  className="text-[11px] text-neutral-400 hover:text-red-400 cursor-pointer uppercase"
+                  className="p-1.5 bg-zinc-800 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 rounded-lg transition-all"
+                  title="Excluir documento"
                 >
-                  {deletingId === selectedDoc.id ? '[...]' : '[REMOVER]'}
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-4 overflow-y-auto min-h-[450px] xl:min-h-0">
+          <div className="p-3.5 sm:p-4 flex flex-col gap-3.5 flex-1 overflow-y-auto min-h-[450px] xl:min-h-0">
             {selectedDoc ? (
               <>
-                <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
-                  DOCUMENTO SELECIONADO
-                </div>
+                {/* Visualizador de PDF Opcional Embutido */}
+                {showPdfPreview && (
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-950 h-72 shrink-0 flex flex-col">
+                    <div className="px-3 py-1.5 bg-zinc-900 border-b border-zinc-800 text-[11px] font-mono text-zinc-400 flex items-center justify-between">
+                      <span>Visualizador Embutido</span>
+                      <a
+                        href={selectedDoc.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-purple-400 hover:underline flex items-center gap-1"
+                      >
+                        Tela cheia <ArrowRight className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <iframe
+                      src={selectedDoc.file_url}
+                      className="w-full flex-1 border-0"
+                      title={selectedDoc.title}
+                    />
+                  </div>
+                )}
 
-                <div className="bg-[#161616] border border-neutral-800 p-3 sm:p-4">
-                  <h2 className="text-sm sm:text-base font-semibold text-white break-words">
+                {/* Card de Título e Metadados Principais */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-zinc-900/90 to-zinc-950 border border-zinc-800/90 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 uppercase">
+                      {selectedDoc.folders?.name || 'Geral'}
+                    </span>
+                    <span className="text-zinc-600 text-xs">•</span>
+                    <span className="text-[11px] font-mono text-zinc-400">
+                      {formatFileSize(selectedDoc.file_size)}
+                    </span>
+                  </div>
+
+                  <h2 className="text-base sm:text-lg font-bold text-zinc-100 leading-snug break-words">
                     {selectedDoc.title}
                   </h2>
+
                   {activeTags.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2 sm:mt-3">
-                      {activeTags.map((t, i) => (
+                    <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-zinc-800/60">
+                      {activeTags.map((tag, i) => (
                         <span
                           key={i}
-                          className="font-mono text-[10px] uppercase px-2 py-0.5 bg-neutral-900 border border-neutral-700 text-purple-400"
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400"
                         >
-                          {t}
+                          #{tag}
                         </span>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
-                  METADADOS DE CATALOGAÇÃO
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-[#161616] border border-neutral-800 p-3">
-                    <span className="block font-mono text-[10px] text-neutral-500 uppercase">
-                      CATEGORIA / PASTA
-                    </span>
-                    <span className="mt-1 block text-sm font-semibold text-purple-400 uppercase truncate">
-                      {selectedDoc.folders?.name || 'NÃO CLASSIFICADO'}
+                {/* Grade de Estatísticas e Metadados */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                    <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] mb-1 font-mono">
+                      <Folder className="w-3.5 h-3.5 text-purple-400" />
+                      <span>CATEGORIA</span>
+                    </div>
+                    <span className="text-xs font-semibold text-zinc-200 uppercase truncate block">
+                      {selectedDoc.folders?.name || 'Geral'}
                     </span>
                   </div>
-                  <div className="bg-[#161616] border border-neutral-800 p-3">
-                    <span className="block font-mono text-[10px] text-neutral-500 uppercase">
-                      DATA DE INDEXAÇÃO
-                    </span>
-                    <span className="mt-1 block text-sm font-mono text-neutral-300">
-                      {new Date(selectedDoc.created_at).toLocaleDateString('pt-BR')}
+
+                  <div className="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80">
+                    <div className="flex items-center gap-1.5 text-zinc-500 text-[11px] mb-1 font-mono">
+                      <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>INDEXAÇÃO</span>
+                    </div>
+                    <span className="text-xs font-mono font-medium text-zinc-200 block">
+                      {new Date(selectedDoc.created_at).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-neutral-400">
-                  SÍNTESE DO DOCUMENTO
-                </div>
+                {/* Card de Síntese Inteligente (IA) */}
+                <div className="flex-1 flex flex-col rounded-xl bg-zinc-950/80 border border-zinc-800/90 overflow-hidden shadow-sm">
+                  <div className="px-4 py-2.5 bg-zinc-900/60 border-b border-zinc-800/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-medium text-zinc-200">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Síntese Executiva Gerada por IA</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopySummary}
+                      className="text-xs font-medium text-zinc-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1 rounded hover:bg-zinc-800"
+                      title="Copiar resumo"
+                    >
+                      {copiedSummary ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-emerald-400 text-[11px]">Copiado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Copiar</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
-                <div className="flex-1 bg-[#161616] border border-neutral-800 p-3 sm:p-4 overflow-y-auto">
-                  <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed whitespace-pre-wrap">
-                    {selectedDoc.ai_summary}
-                  </p>
+                  <div className="p-4 flex-1 overflow-y-auto">
+                    <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-sans">
+                      {selectedDoc.ai_summary}
+                    </p>
+                  </div>
                 </div>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center font-mono text-xs text-neutral-600 uppercase">
-                NENHUM ARQUIVO SELECIONADO
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-zinc-500 border border-dashed border-zinc-800/80 rounded-xl">
+                <FileText className="w-8 h-8 text-zinc-600 mb-2" />
+                <p className="text-xs font-medium text-zinc-400">Nenhum documento selecionado</p>
+                <p className="text-[11px] text-zinc-600 mt-1">
+                  Selecione um arquivo da lista ao lado para inspecionar seu resumo e metadados.
+                </p>
               </div>
             )}
           </div>
         </section>
 
         {/* =========================================================
-            COLUNA 3 (DIREITA): TERMINAL DE ESTUDO
+            COLUNA 3: TERMINAL DE ESTUDO (DIREITA - 4 COLUNAS)
         ========================================================= */}
         <section
-          className={`col-span-12 xl:col-span-4 flex flex-col gap-3 h-full overflow-hidden ${
+          className={`col-span-12 xl:col-span-4 flex-col h-full overflow-hidden bg-zinc-900/40 border border-zinc-800/80 rounded-2xl backdrop-blur-md shadow-sm ${
             activeTab === 'chat' ? 'flex' : 'hidden xl:flex'
           }`}
         >
-          <div className="h-9 bg-neutral-800 border-l-4 border-purple-500 text-neutral-200 font-mono text-xs font-bold uppercase tracking-widest px-4 flex items-center justify-between shrink-0">
-            <span>03 // TERMINAL DE ESTUDO</span>
-            <span className="text-purple-400">{STUDY_MODES_CONFIG[studyMode].title}</span>
+          {/* Header da Coluna 3 */}
+          <div className="px-4 py-3 border-b border-zinc-800/80 flex items-center justify-between shrink-0 bg-zinc-950/40">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-3.5 bg-purple-500 rounded-full" />
+              <span className="text-xs font-semibold text-zinc-200 uppercase tracking-wider">
+                03. Tutor de Estudos IA
+              </span>
+            </div>
           </div>
 
-          <div className="flex-1 bg-[#111111] border border-neutral-800 p-3 sm:p-4 flex flex-col gap-3 overflow-hidden min-h-[500px] xl:min-h-0">
-            {/* Status Superior */}
-            <div className="bg-[#161616] border border-neutral-800 p-3 space-y-2 shrink-0">
-              <div className="flex items-center justify-between font-mono text-[10px] text-neutral-400">
-                <span className="truncate max-w-[65%]">DIRETRIZ: {STUDY_MODES_CONFIG[studyMode].role}</span>
-                <span>MSG: {messages.length}</span>
-              </div>
-              <div className="w-3/4 h-1.5 bg-purple-500" />
-              <div className="w-full h-1.5 bg-neutral-800" />
-            </div>
-
-            {/* Mensagens */}
-            <div className="flex-1 bg-[#161616] border border-neutral-800 p-3 overflow-y-auto space-y-3 min-h-[220px]">
-              {messages.length === 0 ? (
-                <div className="h-full flex items-center justify-center font-mono text-xs text-neutral-600 uppercase text-center px-4">
-                  SELECIONE O MODO ABAIXO E ENVIE UMA QUESTÃO PARA INICIAR
-                </div>
-              ) : (
-                messages.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3 border text-xs leading-relaxed whitespace-pre-wrap ${
-                      m.role === 'user'
-                        ? 'bg-[#1f1f1f] border-purple-500/60 text-neutral-100 ml-3 sm:ml-4'
-                        : 'bg-[#121212] border-neutral-800 text-neutral-300 mr-3 sm:mr-4'
-                    }`}
-                  >
-                    <div className="font-mono text-[10px] uppercase mb-1 text-purple-400">
-                      {m.role === 'user' ? 'VOCÊ' : `SISTEMA // ${STUDY_MODES_CONFIG[studyMode].title}`}
-                    </div>
-                    {m.content}
-                  </div>
-                ))
-              )}
-              {loadingChat && (
-                <div className="p-3 bg-[#121212] border border-neutral-800 font-mono text-xs text-purple-400 uppercase">
-                  PROCESSANDO RESPOSTA...
-                </div>
-              )}
-            </div>
-
-            {/* Modos de Operação */}
-            <div className="bg-[#1c1c1c] border-l-2 border-purple-500 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-neutral-400 shrink-0">
-              MODO DE OPERAÇÃO DA IA
-            </div>
-
+          <div className="p-3.5 sm:p-4 flex flex-col gap-3 flex-1 overflow-hidden min-h-[520px] xl:min-h-0">
+            
+            {/* Seletor Moderno de Modo de Estudo (3 Modos) */}
             <div className="grid grid-cols-3 gap-2 shrink-0">
               {(['socratico', 'explicativo', 'quiz'] as const).map((mode) => {
                 const active = studyMode === mode;
                 const info = STUDY_MODES_CONFIG[mode];
+                const ModeIcon = info.icon;
+
                 return (
                   <button
                     key={mode}
                     type="button"
                     onClick={() => setStudyMode(mode)}
-                    className={`p-2 border text-left transition-colors cursor-pointer flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                       active
-                        ? 'bg-purple-600 border-purple-500 text-white'
-                        : 'bg-[#161616] border-neutral-800 text-neutral-400 hover:border-neutral-600 hover:text-neutral-200'
+                        ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/30'
+                        : 'bg-zinc-950/60 border-zinc-800/90 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-900/70 hover:text-zinc-200'
                     }`}
                   >
-                    <span className="font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider block">
-                      {info.title}
-                    </span>
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span className="text-[11px] font-bold tracking-tight">
+                        {info.title}
+                      </span>
+                    </div>
                     <span
-                      className={`font-mono text-[8px] sm:text-[9px] uppercase mt-1 block truncate ${
-                        active ? 'text-purple-100 font-semibold' : 'text-neutral-500'
+                      className={`text-[9px] uppercase font-mono tracking-wider truncate ${
+                        active ? 'text-purple-100 font-medium' : 'text-zinc-500'
                       }`}
                     >
                       {info.role}
@@ -625,34 +817,133 @@ export default function HomePage() {
               })}
             </div>
 
-            {/* Descrição do Modo Ativo */}
-            <div className="bg-[#161616] border border-neutral-800 p-2.5 shrink-0">
-              <div className="font-mono text-[10px] uppercase text-purple-400 mb-1">
-                ESPECIFICAÇÃO // {STUDY_MODES_CONFIG[studyMode].title}
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-neutral-300 leading-snug">
+            {/* Descrição Didática do Modo Ativo */}
+            <div className="px-3 py-2 rounded-xl bg-zinc-950/60 border border-zinc-800/80 flex items-start gap-2 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-purple-400 mt-0.5 shrink-0" />
+              <p className="text-[11px] text-zinc-300 leading-snug">
+                <span className="font-semibold text-purple-300">
+                  {STUDY_MODES_CONFIG[studyMode].title}:
+                </span>{' '}
                 {STUDY_MODES_CONFIG[studyMode].description}
               </p>
             </div>
 
-            {/* Formulário de Envio */}
-            <form onSubmit={handleSendMessage} className="flex gap-2 shrink-0">
-              <input
-                type="text"
-                value={inputMsg}
-                onChange={(e) => setInputMsg(e.target.value)}
-                disabled={!selectedDoc || loadingChat}
-                placeholder="DIGITE SUA PERGUNTA OU RESPOSTA..."
-                className="flex-1 bg-[#161616] border border-neutral-800 focus:border-purple-500 px-3 py-2 sm:py-2.5 text-xs text-white placeholder-neutral-600 font-mono focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={!selectedDoc || loadingChat || !inputMsg.trim()}
-                className="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-mono font-bold text-xs uppercase px-3 sm:px-4 py-2 sm:py-2.5 cursor-pointer transition-colors"
-              >
-                ENVIAR
-              </button>
+            {/* Lista de Mensagens do Chat */}
+            <div className="flex-1 bg-zinc-950/80 border border-zinc-800/90 rounded-xl p-3 overflow-y-auto space-y-3 min-h-[220px]">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 text-zinc-500">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-2">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-medium text-zinc-300">Workspace de Estudo Vazio</p>
+                  <p className="text-[11px] text-zinc-500 mt-1 max-w-[260px]">
+                    Envie uma dúvida sobre o PDF ou escolha uma das perguntas sugeridas abaixo.
+                  </p>
+                </div>
+              ) : (
+                messages.map((m, idx) => {
+                  const isUser = m.role === 'user';
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {!isUser && (
+                        <div className="w-6 h-6 rounded-md bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                          <Bot className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+
+                      <div
+                        className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed whitespace-pre-wrap ${
+                          isUser
+                            ? 'bg-purple-600 text-white rounded-tr-xs shadow-sm shadow-purple-950/40'
+                            : 'bg-zinc-900 border border-zinc-800/90 text-zinc-200 rounded-tl-xs shadow-sm'
+                        }`}
+                      >
+                        <div
+                          className={`text-[9px] font-mono uppercase mb-1 ${
+                            isUser ? 'text-purple-200' : 'text-purple-400 font-semibold'
+                          }`}
+                        >
+                          {isUser ? 'Você' : `Tutor IA // ${STUDY_MODES_CONFIG[studyMode].title}`}
+                        </div>
+                        {m.content}
+                      </div>
+
+                      {isUser && (
+                        <div className="w-6 h-6 rounded-md bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-300 shrink-0 mt-0.5">
+                          <User className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {loadingChat && (
+                <div className="flex gap-2.5 items-start">
+                  <div className="w-6 h-6 rounded-md bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-300 shrink-0 mt-0.5">
+                    <Bot className="w-3.5 h-3.5 animate-pulse" />
+                  </div>
+                  <div className="bg-zinc-900 border border-zinc-800/90 text-purple-300 rounded-2xl rounded-tl-xs p-3 text-xs flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
+                    <span>Gemini analisando contexto e formulando resposta...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Perguntas Sugeridas / Ações Rápidas */}
+            <div className="space-y-1.5 shrink-0">
+              <div className="flex items-center justify-between text-[10px] font-mono text-zinc-500 px-1">
+                <span>SUGESTÕES PARA O MODO ATIVO</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PROMPTS[studyMode].map((prompt, pIdx) => (
+                  <button
+                    key={pIdx}
+                    type="button"
+                    onClick={() => {
+                      setInputMsg(prompt);
+                      inputRef.current?.focus();
+                    }}
+                    className="text-[10px] text-zinc-300 hover:text-purple-200 bg-zinc-950/70 hover:bg-zinc-900 border border-zinc-800/90 hover:border-purple-500/50 rounded-lg px-2.5 py-1 transition-all text-left truncate max-w-full"
+                  >
+                    💡 {prompt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Formulário de Envio com Design Moderno */}
+            <form onSubmit={(e) => handleSendMessage(e)} className="shrink-0">
+              <div className="relative flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1 focus-within:border-purple-500/80 focus-within:ring-1 focus-within:ring-purple-500/30 transition-all">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputMsg}
+                  onChange={(e) => setInputMsg(e.target.value)}
+                  disabled={!selectedDoc || loadingChat}
+                  placeholder={
+                    selectedDoc
+                      ? 'Faça uma pergunta sobre o documento...'
+                      : 'Selecione um PDF antes de interagir...'
+                  }
+                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-500 px-3 py-2 focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={!selectedDoc || loadingChat || !inputMsg.trim()}
+                  className="p-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white transition-all cursor-pointer flex items-center justify-center shrink-0 shadow-sm shadow-purple-900/40"
+                  title="Enviar mensagem"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </form>
+
           </div>
         </section>
 
