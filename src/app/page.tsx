@@ -27,10 +27,12 @@ import {
   LogOut,
   Lock,
   Lightbulb,
+  FilePlus2,
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './components/LoginPage';
+import NotesWorkspace from './components/NotesWorkspace';
 
 interface TagRelation {
   tags: { name: string } | null;
@@ -119,6 +121,14 @@ export default function HomePage() {
   const [inputMsg, setInputMsg] = useState('');
   const [studyMode, setStudyMode] = useState<StudyMode>('socratico');
   const [loadingChat, setLoadingChat] = useState(false);
+
+  // Módulo ativo: 'study' (Estudos e PDFs) ou 'notes' (Ambiente de Anotações Markdown)
+  const [activeModule, setActiveModule] = useState<'study' | 'notes'>('study');
+  const [noteDraft, setNoteDraft] = useState<{
+    title: string;
+    content: string;
+    folderName?: string;
+  } | null>(null);
 
   // Aba ativa para telas menores (< lg)
   const [activeTab, setActiveTab] = useState<ActiveTab>('files');
@@ -340,18 +350,49 @@ export default function HomePage() {
           BARRA SUPERIOR (HEADER RESPONSIVO COM STATUS DE AUTENTICAÇÃO)
       ========================================================= */}
       <header className="h-14 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="font-bold text-base sm:text-lg tracking-tight text-white shrink-0">
-            PoimpStudy
-          </span>
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-bold text-base sm:text-lg tracking-tight text-white shrink-0">
+              PoimpStudy
+            </span>
 
-          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-[11px] font-semibold text-emerald-300 shrink-0">
-            <Lock className="w-3 h-3 text-emerald-400" />
-            <span>Vault Protegido</span>
-          </span>
+            <span className="hidden xl:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-[11px] font-semibold text-emerald-300 shrink-0">
+              <Lock className="w-3 h-3 text-emerald-400" />
+              <span>Vault</span>
+            </span>
+          </div>
 
-          {selectedDoc && (
-            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-0.5 max-w-[160px] lg:max-w-[220px] truncate">
+          {/* Seletor de Módulo: Estudos & PDFs vs Caderno de Anotações */}
+          <div className="flex items-center p-0.5 sm:p-1 bg-zinc-900 border border-zinc-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setActiveModule('study')}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeModule === 'study'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Estudos & PDFs</span>
+              <span className="sm:hidden">PDFs</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveModule('notes')}
+              className={`px-2.5 sm:px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeModule === 'notes'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Anotações</span>
+            </button>
+          </div>
+
+          {activeModule === 'study' && selectedDoc && (
+            <span className="hidden 2xl:inline-flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-0.5 max-w-[200px] truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="truncate">{selectedDoc.title}</span>
             </span>
@@ -359,17 +400,35 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <label className="cursor-pointer inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40">
-            <UploadCloud className="w-4 h-4 shrink-0" />
-            <span>Adicionar PDF</span>
-            <input
-              type="file"
-              accept="application/pdf"
-              onChange={handleFileUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
+          {activeModule === 'study' ? (
+            <label className="cursor-pointer inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40">
+              <UploadCloud className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Adicionar PDF</span>
+              <span className="sm:hidden">PDF</span>
+              <input
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileUpload}
+                disabled={uploading}
+                className="hidden"
+              />
+            </label>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setNoteDraft({
+                  title: 'Nova Anotação',
+                  content: '# Nova Anotação\n\nComece a escrever em Markdown aqui...',
+                });
+              }}
+              className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-xs sm:text-sm font-semibold transition-all shadow-sm shadow-purple-900/40 cursor-pointer"
+            >
+              <FilePlus2 className="w-4 h-4 shrink-0" />
+              <span className="hidden sm:inline">Nova Anotação</span>
+              <span className="sm:hidden">Nota</span>
+            </button>
+          )}
 
           {/* Perfil Autenticado & Botão Sair com Proteção */}
           <div className="flex items-center gap-1.5 pl-1.5 sm:pl-2 border-l border-zinc-800">
@@ -397,9 +456,20 @@ export default function HomePage() {
       </header>
 
       {/* =========================================================
-          NAVEGAÇÃO DE ABAS PARA TELAS PEQUENAS E MÉDIAS (< LG)
+          MÓDULO ATIVO: AMBIENTE DE ANOTAÇÕES MARKDOWN OU ESTUDOS & PDFS
       ========================================================= */}
-      <nav className="lg:hidden p-2 sm:p-3 pb-0 shrink-0">
+      {activeModule === 'notes' ? (
+        <NotesWorkspace
+          userId={user.id}
+          initialNoteDraft={noteDraft}
+          onClearDraft={() => setNoteDraft(null)}
+        />
+      ) : (
+        <>
+          {/* =========================================================
+              NAVEGAÇÃO DE ABAS PARA TELAS PEQUENAS E MÉDIAS (< LG)
+          ========================================================= */}
+          <nav className="lg:hidden p-2 sm:p-3 pb-0 shrink-0">
         <div className="grid grid-cols-3 gap-1 bg-zinc-950/90 border border-zinc-800 rounded-xl p-1 shadow-sm">
           <button
             type="button"
@@ -783,29 +853,51 @@ export default function HomePage() {
 
                 {/* Card de Síntese */}
                 <div className="flex-1 flex flex-col rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-sm min-h-[180px]">
-                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white">
+                  <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0">
                       <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
                       <span className="truncate">Síntese Executiva Gerada por IA</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleCopySummary}
-                      className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-zinc-800 shrink-0"
-                      title="Copiar resumo"
-                    >
-                      {copiedSummary ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
-                          <span className="text-emerald-400">Copiado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                          <span>Copiar</span>
-                        </>
-                      )}
-                    </button>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNoteDraft({
+                            title: `Resumo: ${selectedDoc.title.replace(/\.pdf$/i, '')}`,
+                            content: `# ${selectedDoc.title}\n\n**Categoria:** ${selectedDoc.folders?.name || 'Geral'}\n**Indexado em:** ${new Date(selectedDoc.created_at).toLocaleDateString('pt-BR')}\n\n---\n\n## Síntese do Documento\n\n${selectedDoc.ai_summary}\n\n---\n\n## Anotações Complementares\n\n- [ ] Revisar conceitos-chave\n- [ ] Praticar tópicos abordados\n`,
+                            folderName: 'Resumos de Leitura',
+                          });
+                          setActiveModule('notes');
+                          triggerNotification('Resumo enviado para o Caderno de Anotações.', 'success');
+                        }}
+                        className="text-xs font-semibold text-purple-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-purple-950/70 border border-purple-800/60 shrink-0 cursor-pointer"
+                        title="Criar anotação em Markdown com este resumo"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Criar Anotação</span>
+                        <span className="sm:hidden">Anotar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleCopySummary}
+                        className="text-xs sm:text-sm font-semibold text-zinc-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-zinc-800 shrink-0 cursor-pointer"
+                        title="Copiar resumo"
+                      >
+                        {copiedSummary ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
+                            <span className="text-emerald-400">Copiado!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <span>Copiar</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   <div className="p-3.5 sm:p-5 flex-1 overflow-y-auto">
@@ -1009,8 +1101,9 @@ export default function HomePage() {
 
           </div>
         </section>
-
       </div>
+      </>
+    )}
 
       {/* =========================================================
           FEEDBACK VISUAL: TOAST DE NOTIFICAÇÃO (SEM ALERT BLOQUEANTE)
