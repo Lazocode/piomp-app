@@ -24,8 +24,13 @@ import {
   User,
   ArrowRight,
   AlertCircle,
+  LogOut,
+  Lock,
+  Lightbulb,
 } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import { useAuth } from './context/AuthContext';
+import LoginPage from './components/LoginPage';
 
 interface TagRelation {
   tags: { name: string } | null;
@@ -103,6 +108,8 @@ function formatFileSize(bytes?: number): string {
 }
 
 export default function HomePage() {
+  const { user, loading: authLoading, logout } = useAuth();
+
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -158,6 +165,7 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    if (!user) return;
     async function loadInitialDocs() {
       const { data } = await supabase
         .from('documents')
@@ -171,7 +179,7 @@ export default function HomePage() {
       }
     }
     loadInitialDocs();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!selectedDoc) return;
@@ -310,11 +318,26 @@ export default function HomePage() {
   const activeTags =
     selectedDoc?.document_tags?.map((t) => t.tags?.name).filter(Boolean) || [];
 
+  if (authLoading) {
+    return (
+      <div className="min-h-dvh w-full bg-[#09090b] flex flex-col items-center justify-center text-zinc-400">
+        <div className="w-9 h-9 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mb-3" />
+        <span className="text-xs sm:text-sm font-semibold text-zinc-300">
+          Carregando ambiente seguro...
+        </span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
+
   return (
     <div className="min-h-dvh lg:h-dvh w-full bg-[#09090b] text-zinc-100 flex flex-col font-sans overflow-x-hidden lg:overflow-hidden text-base">
       
       {/* =========================================================
-          BARRA SUPERIOR (HEADER RESPONSIVO)
+          BARRA SUPERIOR (HEADER RESPONSIVO COM STATUS DE AUTENTICAÇÃO)
       ========================================================= */}
       <header className="h-14 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md px-3 sm:px-6 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -322,8 +345,13 @@ export default function HomePage() {
             PoimpStudy
           </span>
 
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-950/50 border border-emerald-500/30 text-[11px] font-semibold text-emerald-300 shrink-0">
+            <Lock className="w-3 h-3 text-emerald-400" />
+            <span>Vault Protegido</span>
+          </span>
+
           {selectedDoc && (
-            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-0.5 max-w-[200px] lg:max-w-[260px] truncate">
+            <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-zinc-400 bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-0.5 max-w-[160px] lg:max-w-[220px] truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="truncate">{selectedDoc.title}</span>
             </span>
@@ -342,6 +370,29 @@ export default function HomePage() {
               className="hidden"
             />
           </label>
+
+          {/* Perfil Autenticado & Botão Sair com Proteção */}
+          <div className="flex items-center gap-1.5 pl-1.5 sm:pl-2 border-l border-zinc-800">
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs">
+              <User className="w-3.5 h-3.5 text-purple-400" />
+              <span className="text-zinc-300 font-medium max-w-[110px] truncate" title={user.email}>
+                {user.name || user.email.split('@')[0]}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                triggerNotification('Você encerrou a sessão com segurança.', 'success');
+              }}
+              title="Encerrar sessão"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-zinc-900 hover:bg-red-500/15 text-zinc-400 hover:text-red-400 border border-zinc-800 transition-all text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -679,7 +730,7 @@ export default function HomePage() {
                     <span className="text-xs font-semibold px-2.5 py-0.5 sm:py-1 rounded-full bg-purple-500/20 text-purple-200 border border-purple-500/30 uppercase tracking-wide">
                       {selectedDoc.folders?.name || 'Geral'}
                     </span>
-                    <span className="text-zinc-500 text-sm">•</span>
+                    <span className="w-1 h-1 rounded-full bg-zinc-600 inline-block" />
                     <span className="text-xs font-semibold text-zinc-300 font-mono">
                       {formatFileSize(selectedDoc.file_size)}
                     </span>
@@ -920,9 +971,10 @@ export default function HomePage() {
                       setInputMsg(prompt);
                       inputRef.current?.focus();
                     }}
-                    className="text-xs font-medium text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all text-left truncate max-w-full"
+                    className="text-xs font-medium text-zinc-200 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 sm:px-3 py-1 sm:py-1.5 transition-all text-left truncate max-w-full inline-flex items-center gap-1.5"
                   >
-                    💡 {prompt}
+                    <Lightbulb className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                    <span className="truncate">{prompt}</span>
                   </button>
                 ))}
               </div>

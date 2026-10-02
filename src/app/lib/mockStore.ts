@@ -28,6 +28,14 @@ export interface StudyMessageRecord {
   created_at: string;
 }
 
+export interface UserRecord {
+  id: string;
+  email: string;
+  password_hash: string;
+  name: string;
+  created_at: string;
+}
+
 export interface DocumentRecord {
   id: string;
   folder_id: string | null;
@@ -104,6 +112,34 @@ class MockDatabase {
       created_at: new Date('2026-02-10T14:35:10Z').toISOString(),
     },
   ];
+
+  users: UserRecord[] = [
+    {
+      id: 'user-demo-1',
+      email: 'estudante@poimp.com',
+      password_hash: 'Estudo@2026',
+      name: 'Estudante Demo',
+      created_at: new Date('2026-01-01T00:00:00Z').toISOString(),
+    },
+  ];
+
+  findUserByEmail(email: string): UserRecord | null {
+    return (
+      this.users.find((u) => u.email.toLowerCase() === email.toLowerCase().trim()) || null
+    );
+  }
+
+  createUser(email: string, passwordHash: string, name?: string): UserRecord {
+    const newUser: UserRecord = {
+      id: `user-${crypto.randomUUID()}`,
+      email: email.toLowerCase().trim(),
+      password_hash: passwordHash,
+      name: name?.trim() || email.split('@')[0],
+      created_at: new Date().toISOString(),
+    };
+    this.users.push(newUser);
+    return newUser;
+  }
 
   storage: Map<string, StoredFile> = new Map();
 
