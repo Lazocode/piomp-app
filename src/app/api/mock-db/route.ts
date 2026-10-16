@@ -38,6 +38,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'update' && table === 'documents' && body.filter?.id) {
+      const updated = mockDb.updateDocument(body.filter.id, payload);
+      return NextResponse.json({ success: true, data: updated });
+    }
+
+    if (action === 'insert' && table === 'folders' && payload?.name) {
+      const existing = mockDb.folders.find((f) => f.name.toLowerCase() === String(payload.name).toLowerCase());
+      if (existing) {
+        return NextResponse.json({ success: true, data: existing });
+      }
+      const newFolder = {
+        id: `folder-${crypto.randomUUID()}`,
+        name: String(payload.name),
+        created_at: new Date().toISOString(),
+      };
+      mockDb.folders.push(newFolder);
+      return NextResponse.json({ success: true, data: newFolder });
+    }
+
     if (action === 'insert' && table === 'study_messages') {
       const messages = Array.isArray(payload) ? payload : [payload];
       for (const msg of messages) {
@@ -45,7 +64,7 @@ export async function POST(request: Request) {
           id: `msg-${crypto.randomUUID()}`,
           document_id: msg.document_id,
           role: msg.role,
-          study_mode: msg.study_mode || 'socratico',
+          study_mode: msg.study_mode || 'objetivo',
           content: msg.content,
           created_at: new Date().toISOString(),
         });

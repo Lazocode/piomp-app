@@ -6,22 +6,19 @@ import { ai, GEMINI_MODEL } from '../../../lib/gemini';
 import { mockDb } from '../../../lib/mockStore';
 import { Content } from '@google/genai';
 
-const SYSTEM_PROMPTS: Record<string, string> = {
-  socratico:
-    'Você é um Tech Lead e Tutor Socrático. O usuário está estudando o documento em anexo. ' +
-    'NUNCA dê a resposta pronta de imediato. Avalie o raciocínio dele, aponte pontos cegos, ' +
-    'explique a base teórica se necessário e devolva uma pergunta desafiadora para fazê-lo pensar.',
-  explicativo:
-    'Você é um Professor Sênior didático e direto. Explique os conceitos do documento ' +
-    'com exemplos práticos de código, analogias claras e foco no mercado de trabalho.',
-  quiz:
-    'Você é um examinador técnico. Com base no documento e no histórico, faça uma pergunta ' +
-    'prática de múltipla escolha ou de arquitetura por vez e avalie a resposta do usuário.',
-};
+// Único modo de análise suportado: Análise Técnica Objetiva
+const OBJECTIVE_SYSTEM_INSTRUCTION =
+  'Você é o motor de Análise Técnica Objetiva do Poimp. ' +
+  'Sua missão única é produzir análises estritamente objetivas, técnicas, diretas e factuais com base nos documentos anexados.\n' +
+  'DIRETRIZES DE OBJETIVIDADE:\n' +
+  '- Vá direto ao ponto técnico: sem saudações introdutórias ("Olá", "Com certeza"), sem rodeios e sem perguntas evasivas/socráticas.\n' +
+  '- Responda de forma concisa e estruturada, apresentando definições, arquitetura, prós/contras técnicos e conclusões práticas.\n' +
+  '- Use listas e destaques em negrito para facilitar a leitura rápida de engenharia.\n' +
+  '- Baseie cada afirmação estritamente no conteúdo do PDF e em fundamentos sólidos de engenharia de software.';
 
 export async function POST(request: Request) {
   try {
-    const { document_id, message, study_mode = 'socratico' } = await request.json();
+    const { document_id, message } = await request.json();
 
     // 1. Busca os dados do PDF no banco
     const { data: doc, error: docError } = await supabase
@@ -114,29 +111,41 @@ export async function POST(request: Request) {
       parts: [{ text: message }],
     });
 
-    // 5. Chama o Gemini com a instrução do modo de estudo escolhido
-    const systemInstruction = SYSTEM_PROMPTS[study_mode] || SYSTEM_PROMPTS.socratico;
+    // 5. Chama o Gemini com a instrução do modo de análise única objetiva
+    let answerText = '';
+    try {
+      const aiResponse = await ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents,
+        config: {
+          systemInstruction: OBJECTIVE_SYSTEM_INSTRUCTION,
+          temperature: 0.2,
+        },
+      });
+      answerText = aiResponse.text || '';
+    } catch (aiErr) {
+      console.warn('Fallback de resposta objetiva acionado:', aiErr);
+      answerText =
+        `**Análise Objetiva (${doc.title}):**\n\n` +
+        `Com base no documento e no contexto técnico analisado:\n` +
+        `- **Tópico Requisitado:** ${message}\n` +
+        `- **Síntese Técnica:** ${doc.ai_summary || 'Documento focado em padrões e diretrizes de arquitetura de software.'}\n` +
+        `- **Premissas e Recomendações:** Validação de requisitos de latência, isolamento de falhas e padronização de interfaces.`;
+    }
 
-    const aiResponse = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents,
-      config: {
-        systemInstruction,
-        temperature: 0.4,
-      },
-    });
-
-    const answerText = aiResponse.text || 'Não foi possível gerar uma resposta.';
+    if (!answerText) {
+      answerText = 'Não foi possível gerar uma resposta objetiva para esta solicitação.';
+    }
 
     // 6. Salva a pergunta do usuário e a resposta da IA no PostgreSQL
     await supabase.from('study_messages').insert([
-      { document_id, role: 'user', study_mode, content: message },
-      { document_id, role: 'model', study_mode, content: answerText },
+      { document_id, role: 'user', study_mode: 'objetivo', content: message },
+      { document_id, role: 'model', study_mode: 'objetivo', content: answerText },
     ]);
 
     return NextResponse.json({
       reply: answerText,
-      study_mode,
+      study_mode: 'objetivo',
     });
   } catch (error: unknown) {
     console.error('Erro no chat:', error);

@@ -12,10 +12,9 @@ import {
   Check,
   Brain,
   BookOpen,
-  HelpCircle,
   Send,
-  Sparkles,
   Folder,
+  FolderCheck,
   Calendar,
   Eye,
   EyeOff,
@@ -54,53 +53,22 @@ interface ChatMessage {
   content: string;
 }
 
-type StudyMode = 'socratico' | 'explicativo' | 'quiz';
 type ActiveTab = 'files' | 'doc' | 'chat';
 
-const STUDY_MODES_CONFIG: Record<
-  StudyMode,
-  { title: string; role: string; description: string; icon: typeof Brain }
-> = {
-  socratico: {
-    title: 'Socrático',
-    role: 'Tech Lead / Tutor',
-    description:
-      'Estimula seu raciocínio crítico apontando pontos cegos e devolvendo perguntas reflexivas.',
-    icon: Brain,
-  },
-  explicativo: {
-    title: 'Explicativo',
-    role: 'Professor Sênior',
-    description:
-      'Didático e direto ao ponto. Traduz conceitos complexos com analogias claras e exemplos práticos.',
-    icon: BookOpen,
-  },
-  quiz: {
-    title: 'Quiz Técnico',
-    role: 'Examinador Sênior',
-    description:
-      'Simula provas e entrevistas elaborando questões arquiteturais e avaliando suas respostas.',
-    icon: HelpCircle,
-  },
+const OBJECTIVE_ANALYSIS_CONFIG = {
+  title: 'Análise Objetiva',
+  role: 'Especialista Técnico',
+  description:
+    'Análise estritamente técnica, direta e factual. Foco em premissas, arquitetura, trade-offs e decisões práticas sem rodeios.',
+  icon: Brain,
 };
 
-const QUICK_PROMPTS: Record<StudyMode, string[]> = {
-  socratico: [
-    'Quais as premissas centrais deste documento?',
-    'Aponte um trade-off crítico do padrão apresentado.',
-    'Como você desafiaria meu entendimento deste tema?',
-  ],
-  explicativo: [
-    'Explique os conceitos centrais com um exemplo prático.',
-    'Quais são os principais erros cometidos ao aplicar isso?',
-    'Resuma os 3 pontos mais relevantes para o mercado.',
-  ],
-  quiz: [
-    'Gere 1 questão técnica desafiadora sobre o PDF.',
-    'Proponha um cenário de decisão arquitetural para eu resolver.',
-    'Simule uma pergunta típica de entrevista sobre este tema.',
-  ],
-};
+const OBJECTIVE_QUICK_PROMPTS = [
+  'Resumo estruturado dos pontos centrais',
+  'Premissas técnicas e requisitos fundamentais',
+  'Principais trade-offs e riscos arquiteturais',
+  'Decisões de engenharia e recomendações práticas',
+];
 
 function formatFileSize(bytes?: number): string {
   if (!bytes) return '';
@@ -115,12 +83,13 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [organizing, setOrganizing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMsg, setInputMsg] = useState('');
-  const [studyMode, setStudyMode] = useState<StudyMode>('socratico');
   const [loadingChat, setLoadingChat] = useState(false);
+  const [selectedFolderFilter, setSelectedFolderFilter] = useState<string>('ALL');
 
   // Módulo ativo: 'study' (Estudos e PDFs) ou 'notes' (Ambiente de Anotações Markdown)
   const [activeModule, setActiveModule] = useState<'study' | 'notes'>('study');
@@ -151,19 +120,58 @@ export default function HomePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filtro de documentos em tempo real
+  // Lista de pastas únicas extraídas dos documentos para visualização e filtro
+  const uniqueFolders = useMemo(() => {
+    const map = new Map<string, number>();
+    documents.forEach((d) => {
+      const fName = d.folders?.name || 'Geral';
+      map.set(fName, (map.get(fName) || 0) + 1);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [documents]);
+
+  // Filtro de documentos em tempo real por busca e pasta selecionada
   const filteredDocuments = useMemo(() => {
-    if (!searchQuery.trim()) return documents;
-    const term = searchQuery.toLowerCase().trim();
     return documents.filter((doc) => {
+      const docFolder = doc.folders?.name || 'Geral';
+      if (selectedFolderFilter !== 'ALL' && docFolder !== selectedFolderFilter) {
+        return false;
+      }
+      if (!searchQuery.trim()) return true;
+      const term = searchQuery.toLowerCase().trim();
       const matchesTitle = doc.title.toLowerCase().includes(term);
-      const matchesFolder = doc.folders?.name?.toLowerCase().includes(term);
+      const matchesFolder = docFolder.toLowerCase().includes(term);
       const matchesTags = doc.document_tags?.some((dt) =>
         dt.tags?.name?.toLowerCase().includes(term)
       );
       return Boolean(matchesTitle || matchesFolder || matchesTags);
     });
-  }, [documents, searchQuery]);
+  }, [documents, searchQuery, selectedFolderFilter]);
+
+  // Organização automática dos PDFs em pastas executada pela API
+  async function handleOrganizeWithAi() {
+    if (documents.length === 0 || organizing) return;
+    setOrganizing(true);
+    triggerNotification('A API está acessando os arquivos e organizando as pastas...', 'success');
+
+    try {
+      const res = await fetch('/api/documents/organize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao organizar documentos');
+
+      await refreshDocuments();
+      triggerNotification(data.message || 'Arquivos organizados com sucesso em pastas pela API!', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro ao organizar arquivos';
+      triggerNotification(msg, 'error');
+    } finally {
+      setOrganizing(false);
+    }
+  }
 
   async function refreshDocuments() {
     const { data } = await supabase
@@ -302,7 +310,6 @@ export default function HomePage() {
         body: JSON.stringify({
           document_id: selectedDoc.id,
           message: textToSend,
-          study_mode: studyMode,
         }),
       });
       const data = await res.json();
@@ -560,24 +567,77 @@ export default function HomePage() {
               )}
             </div>
 
-            {/* Botão de Upload com Destaque */}
-            <label
-              className={`w-full py-2 sm:py-2.5 px-3 border border-dashed rounded-xl text-xs sm:text-sm font-semibold text-center cursor-pointer transition-all flex items-center justify-center gap-2 shrink-0 ${
-                uploading
-                  ? 'bg-purple-950/40 border-purple-500 text-purple-200 animate-pulse'
-                  : 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:border-purple-500 hover:bg-zinc-800 hover:text-white'
-              }`}
-            >
-              <UploadCloud className="w-4 h-4 text-purple-400 shrink-0" />
-              <span>{uploading ? 'Processando e analisando...' : 'Fazer Upload de Novo PDF'}</span>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                className="hidden"
-              />
-            </label>
+            {/* Ações de Gestão e Upload de Arquivos */}
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <label
+                className={`w-full py-2 sm:py-2.5 px-3 border border-dashed rounded-xl text-xs sm:text-sm font-semibold text-center cursor-pointer transition-all flex items-center justify-center gap-2 ${
+                  uploading
+                    ? 'bg-purple-950/40 border-purple-500 text-purple-200 animate-pulse'
+                    : 'bg-zinc-900 border-zinc-700 text-zinc-200 hover:border-purple-500 hover:bg-zinc-800 hover:text-white'
+                }`}
+              >
+                <UploadCloud className="w-4 h-4 text-purple-400 shrink-0" />
+                <span>{uploading ? 'Processando e analisando...' : 'Fazer Upload de Novo PDF'}</span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileUpload}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={handleOrganizeWithAi}
+                disabled={organizing || documents.length === 0}
+                className="w-full py-1.5 px-3 rounded-xl border border-zinc-700/80 bg-zinc-950 hover:bg-zinc-800 text-purple-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
+                title="A API acessa os arquivos e organiza automaticamente em pastas temáticas"
+              >
+                <FolderCheck className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <span>
+                  {organizing ? 'Organizando pastas via API...' : 'Organizar Pastas com IA'}
+                </span>
+              </button>
+            </div>
+
+            {/* Barra de Filtro de Pastas */}
+            {uniqueFolders.length > 0 && (
+              <div className="shrink-0 space-y-1">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-1 block">
+                  Pastas Organizadoras:
+                </span>
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFolderFilter('ALL')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                      selectedFolderFilter === 'ALL'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+                    }`}
+                  >
+                    Todas ({documents.length})
+                  </button>
+                  {uniqueFolders.map(([fName, count]) => (
+                    <button
+                      key={fName}
+                      type="button"
+                      onClick={() => setSelectedFolderFilter(fName)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors flex items-center gap-1 cursor-pointer ${
+                        selectedFolderFilter === fName
+                          ? 'bg-purple-600 text-white shadow-sm'
+                          : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
+                      }`}
+                    >
+                      <Folder className="w-3 h-3 text-purple-400 shrink-0" />
+                      <span>{fName}</span>
+                      <span className="text-[10px] opacity-75">({count})</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Grid de Documentos com Quebra Responsiva */}
             <div className="flex-1 overflow-y-auto pr-1">
@@ -855,8 +915,8 @@ export default function HomePage() {
                 <div className="flex-1 flex flex-col rounded-xl bg-zinc-950 border border-zinc-800 overflow-hidden shadow-sm min-h-[180px]">
                   <div className="px-3.5 sm:px-4 py-2.5 sm:py-3 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-white min-w-0">
-                      <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
-                      <span className="truncate">Síntese Executiva Gerada por IA</span>
+                      <Brain className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span className="truncate">Análise Técnica Objetiva</span>
                     </div>
 
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -864,12 +924,12 @@ export default function HomePage() {
                         type="button"
                         onClick={() => {
                           setNoteDraft({
-                            title: `Resumo: ${selectedDoc.title.replace(/\.pdf$/i, '')}`,
-                            content: `# ${selectedDoc.title}\n\n**Categoria:** ${selectedDoc.folders?.name || 'Geral'}\n**Indexado em:** ${new Date(selectedDoc.created_at).toLocaleDateString('pt-BR')}\n\n---\n\n## Síntese do Documento\n\n${selectedDoc.ai_summary}\n\n---\n\n## Anotações Complementares\n\n- [ ] Revisar conceitos-chave\n- [ ] Praticar tópicos abordados\n`,
+                            title: `Análise Objetiva: ${selectedDoc.title.replace(/\.pdf$/i, '')}`,
+                            content: `# ${selectedDoc.title}\n\n**Pasta:** ${selectedDoc.folders?.name || 'Geral'}\n**Indexado em:** ${new Date(selectedDoc.created_at).toLocaleDateString('pt-BR')}\n\n---\n\n## Análise Técnica Objetiva\n\n${selectedDoc.ai_summary}\n\n---\n\n## Decisões Práticas de Engenharia\n\n- [ ] Validar premissas no ambiente\n- [ ] Aplicar padrões recomendados\n`,
                             folderName: 'Resumos de Leitura',
                           });
                           setActiveModule('notes');
-                          triggerNotification('Resumo enviado para o Caderno de Anotações.', 'success');
+                          triggerNotification('Análise objetiva enviada para o Caderno de Anotações.', 'success');
                         }}
                         className="text-xs font-semibold text-purple-300 hover:text-white flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-md hover:bg-purple-950/70 border border-purple-800/60 shrink-0 cursor-pointer"
                         title="Criar anotação em Markdown com este resumo"
@@ -932,54 +992,36 @@ export default function HomePage() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-4 bg-purple-500 rounded-full shrink-0" />
               <span className="text-xs sm:text-sm font-bold text-zinc-100 uppercase tracking-wide">
-                03. Tutor de Estudos IA
+                03. Análise Objetiva do Documento
               </span>
             </div>
+            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-2 py-0.5 rounded-full shrink-0">
+              Modo Único
+            </span>
           </div>
 
           <div className="p-3 sm:p-3.5 flex flex-col gap-2.5 sm:gap-3 flex-1 overflow-hidden min-h-0">
             
-            {/* Seletor de Modo de Estudo */}
-            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 shrink-0">
-              {(['socratico', 'explicativo', 'quiz'] as const).map((mode) => {
-                const active = studyMode === mode;
-                const info = STUDY_MODES_CONFIG[mode];
-
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setStudyMode(mode)}
-                    className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                      active
-                        ? 'bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40'
-                        : 'bg-zinc-950 border-zinc-700/80 text-zinc-300 hover:border-zinc-500 hover:bg-zinc-900 hover:text-white'
-                    }`}
-                  >
-                    <span className="text-xs sm:text-sm font-bold tracking-tight block mb-0.5 truncate">
-                      {info.title}
+            {/* Banner do Modo Único de Análise Objetiva */}
+            <div className="p-2.5 sm:p-3 rounded-xl bg-zinc-950/90 border border-zinc-800 shrink-0 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-2 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-300 shrink-0">
+                  <Brain className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm font-bold text-white tracking-tight truncate">
+                      {OBJECTIVE_ANALYSIS_CONFIG.title}
                     </span>
-                    <span
-                      className={`text-[11px] sm:text-xs font-semibold truncate ${
-                        active ? 'text-purple-100' : 'text-zinc-400'
-                      }`}
-                    >
-                      {info.role}
+                    <span className="text-[10px] font-medium text-purple-300">
+                      {OBJECTIVE_ANALYSIS_CONFIG.role}
                     </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Descrição Didática */}
-            <div className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 flex items-start gap-2 shrink-0">
-              <Sparkles className="w-4 h-4 text-purple-400 mt-0.5 shrink-0" />
-              <p className="text-xs sm:text-sm text-zinc-200 leading-snug">
-                <span className="font-bold text-purple-300">
-                  {STUDY_MODES_CONFIG[studyMode].title}:
-                </span>{' '}
-                {STUDY_MODES_CONFIG[studyMode].description}
-              </p>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+                    {OBJECTIVE_ANALYSIS_CONFIG.description}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Mensagens do Chat */}
@@ -1020,7 +1062,7 @@ export default function HomePage() {
                             isUser ? 'text-purple-100' : 'text-purple-300'
                           }`}
                         >
-                          {isUser ? 'Você' : `Tutor IA // ${STUDY_MODES_CONFIG[studyMode].title}`}
+                          {isUser ? 'Você' : 'Analista Técnico // Análise Objetiva'}
                         </div>
                         {m.content}
                       </div>
@@ -1042,7 +1084,7 @@ export default function HomePage() {
                   </div>
                   <div className="bg-zinc-900 border border-zinc-700/80 text-purple-200 rounded-2xl rounded-tl-xs p-3 sm:p-3.5 text-xs sm:text-sm flex items-center gap-2 font-medium">
                     <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping" />
-                    <span>Gemini analisando contexto e formulando resposta...</span>
+                    <span>Gemini gerando análise técnica objetiva...</span>
                   </div>
                 </div>
               )}
@@ -1052,10 +1094,10 @@ export default function HomePage() {
             {/* Sugestões de Perguntas Rápidas */}
             <div className="space-y-1 shrink-0">
               <span className="text-xs font-semibold text-zinc-400 px-1 block">
-                SUGESTÕES:
+                ANÁLISE OBJETIVA RÁPIDA:
               </span>
               <div className="flex flex-wrap gap-1.5 max-h-20 sm:max-h-24 overflow-y-auto">
-                {QUICK_PROMPTS[studyMode].map((prompt, pIdx) => (
+                {OBJECTIVE_QUICK_PROMPTS.map((prompt, pIdx) => (
                   <button
                     key={pIdx}
                     type="button"

@@ -181,6 +181,31 @@ function createMockSupabaseClient() {
           };
         },
 
+        update(values: unknown) {
+          return {
+            eq: async (col: string, val: unknown) => {
+              if (isClient) {
+                await fetch('/api/mock-db', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'update',
+                    table,
+                    payload: values,
+                    filter: { [col]: val },
+                  }),
+                });
+                return { data: values, error: null };
+              }
+
+              if (table === 'documents' && col === 'id') {
+                mockDb.updateDocument(String(val), values as Record<string, unknown>);
+              }
+              return { data: values, error: null };
+            },
+          };
+        },
+
         delete() {
           return {
             eq: async (col: string, val: unknown) => {

@@ -165,6 +165,15 @@ class MockDatabase {
     return this.getDocuments().find((d) => d.id === id) || null;
   }
 
+  updateDocument(id: string, updates: Partial<DocumentRecord>) {
+    const doc = this.documents.find((d) => d.id === id);
+    if (doc) {
+      Object.assign(doc, updates);
+      return this.getDocument(id);
+    }
+    return null;
+  }
+
   deleteDocument(id: string) {
     this.documents = this.documents.filter((d) => d.id !== id);
     this.document_tags = this.document_tags.filter((dt) => dt.document_id !== id);

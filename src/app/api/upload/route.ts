@@ -38,11 +38,13 @@ export async function POST(request: Request) {
 
     const fileUrl = publicUrlData.publicUrl;
 
-    // 2. Envia o PDF diretamente para o Gemini analisar
+    // 2. Envia o PDF diretamente para o Gemini analisar e organizar por pasta
     const prompt =
-      'Você é um assistente acadêmico de engenharia de software. ' +
-      'Analise este PDF de estudo, gere um resumo claro dos tópicos, ' +
-      'sugira uma pasta principal (matéria) e de 3 a 5 tags.';
+      'Você é o motor de indexação e organização técnica do Poimp. ' +
+      'Analise os arquivos recebidos e realize uma análise estritamente objetiva do PDF anexado: ' +
+      '1. Organize o documento determinando uma pasta temática concisa, formal e precisa para armazenamento (ex: "Arquitetura de Software", "Sistemas Distribuídos", "Banco de Dados", "Segurança da Informação", "DevOps e Cloud", "Engenharia de Dados", "Algoritmos e Estruturas de Dados"). ' +
+      '2. Elabore uma análise estritamente objetiva em tópicos diretos: Objetivo Principal, Arquitetura/Metodologia, Principais Trade-offs e Recomendações Práticas, sem preâmbulos, sem saudações e sem floreios conversacionais. ' +
+      '3. Extraia de 3 a 5 tags técnicas essenciais.';
 
     const aiResponse = await ai.models.generateContent({
       model: GEMINI_MODEL,
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
       config: {
         responseMimeType: 'application/json',
         responseSchema: pdfAnalysisSchema,
+        temperature: 0.2,
       },
     });
 
